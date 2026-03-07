@@ -94,6 +94,9 @@
             selects.forEach(s => catIds = catIds.concat(Array.from(s.selectedOptions).map(o => o.value)));
             if (catIds.length === 0) return alert("Select at least one category");
             
+            // NEW CHECK ADDED HERE
+            if (!document.getElementById('sInput').value.trim()) return alert("Please enter a solution before saving.");
+            
             const data = {
                 latexQuestion: document.getElementById('qInput').value,
                 latexSolution: document.getElementById('sInput').value,
