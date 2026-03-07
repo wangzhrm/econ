@@ -24,7 +24,6 @@
         import { getFirestore, collection, addDoc, getDocs, doc, setDoc, query, where, orderBy, getDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 
-        // New Firebase Configuration for AP Economics
         const firebaseConfig = {
             apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
             authDomain: "econap-f858f.firebaseapp.com",
@@ -47,7 +46,6 @@
             const u = document.getElementById('userInput').value;
             const p = document.getElementById('passInput').value;
             try {
-                // Assuming "Master" collection exists in new DB for credentials
                 const q = query(collection(db, "Master"), where("username", "==", u), where("password", "==", p));
                 const snap = await getDocs(q);
                 if (!snap.empty) {
@@ -76,12 +74,10 @@
             document.getElementById('qText').innerHTML = qVal.replace(/\n/g, '<br>') || "Question Preview";
             document.getElementById('sText').innerHTML = sVal.replace(/\n/g, '<br>') || "Solution Preview";
             
-            // Question Diagram Preview
             const diagDiv = document.getElementById('qDiag');
             if (qUrl) { diagDiv.innerHTML = `<img src="${qUrl}">`; diagDiv.style.display = 'block'; }
             else { diagDiv.style.display = 'none'; }
 
-            // Solution Diagram Preview
             const solDiagDiv = document.getElementById('sDiag');
             if (sUrl) { solDiagDiv.innerHTML = `<img src="${sUrl}">`; solDiagDiv.style.display = 'block'; }
             else { solDiagDiv.style.display = 'none'; }
@@ -102,7 +98,7 @@
                 latexQuestion: document.getElementById('qInput').value,
                 latexSolution: document.getElementById('sInput').value,
                 diagramUrl: document.getElementById('diagUrl').value.trim(),
-                solutionDiagramUrl: document.getElementById('solDiagUrl').value.trim(), // Storing Solution Diagram
+                solutionDiagramUrl: document.getElementById('solDiagUrl').value.trim(),
                 isDifficult: document.getElementById('diffToggle').classList.contains('active'),
                 categories: catIds,
                 updatedAt: new Date()
@@ -123,7 +119,7 @@
                 document.getElementById('qInput').value = q.latexQuestion || "";
                 document.getElementById('sInput').value = q.latexSolution || "";
                 document.getElementById('diagUrl').value = q.diagramUrl || "";
-                document.getElementById('solDiagUrl').value = q.solutionDiagramUrl || ""; // Loading Solution Diagram
+                document.getElementById('solDiagUrl').value = q.solutionDiagramUrl || "";
                 document.getElementById('cancelEdit').style.display = "block";
                 if(q.isDifficult) document.getElementById('diffToggle').classList.add('active');
                 else document.getElementById('diffToggle').classList.remove('active');
@@ -174,6 +170,24 @@
                     <div class="btn-action-group"><button class="btn-sm btn-edit" onclick="editQuestion('${d.id}')">Edit</button><button class="btn-sm btn-remove" onclick="deleteQuestion('${d.id}')">Remove</button></div>`;
                 container.appendChild(div);
             });
+        };
+
+        window.renameCategory = async (id, oldName) => {
+            const newName = prompt("Rename category:", oldName);
+            if (!newName || newName === oldName) return;
+            try {
+                await setDoc(doc(db, "Category", id), { name: newName }, { merge: true });
+                await renderApp(); fetchQuestions();
+            } catch (e) { alert(e.message); }
+        };
+
+        window.removeCategory = async (id, name) => {
+            if (confirm(`Are you sure you want to delete "${name}"? This will not delete the questions themselves, but they will lose this category tag.`)) {
+                try {
+                    await deleteDoc(doc(db, "Category", id));
+                    await renderApp(); fetchQuestions();
+                } catch (e) { alert(e.message); }
+            }
         };
 
         window.moveOption = async (direction) => {
@@ -233,19 +247,21 @@
                     return pId === root.id;
                 });
                 
-                let boxHeight = nameLower.includes('chapter') ? "285px" : "55px";
+                let boxHeight = nameLower.includes('chapter') ? "285px" : "100px";
                 const box = document.createElement('div');
                 box.style.marginBottom = "15px";
                 box.innerHTML = `
                     <div class="cat-header-row">
                         <strong style="font-size: 11px; color: #666;">${root.name}</strong>
                         <div style="display:flex; gap:2px;">
-                            <button class="reorder-btn" onclick="moveOption('up')">Up</button>
-                            <button class="reorder-btn" onclick="moveOption('down')">Down</button>
+                            <button class="reorder-btn" onclick="renameCategory('${root.id}', '${root.name}')">Ren</button>
+                            <button class="reorder-btn" style="color:var(--danger);" onclick="removeCategory('${root.id}', '${root.name}')">Del</button>
+                            <button class="reorder-btn" onclick="moveOption('up')">↑</button>
+                            <button class="reorder-btn" onclick="moveOption('down')">↓</button>
                         </div>
                     </div>
                     <select multiple class="question-cat-select" style="width:100%; height:${boxHeight}; border-radius: 0 0 4px 4px; border:1px solid #ddd; font-size: 13px;">
-                        ${children.map(ch => `<option value="${ch.id}">${ch.name}</option>`).join('')}
+                        ${children.map(ch => `<option value="${ch.id}" ondblclick="renameCategory('${ch.id}', '${ch.name}')" oncontextmenu="event.preventDefault(); removeCategory('${ch.id}', '${ch.name}')">${ch.name}</option>`).join('')}
                     </select>`;
                 editor.appendChild(box);
                 targetParent.innerHTML += `<option value="${root.id}">${root.name}</option>`;
@@ -308,8 +324,6 @@
         .diff-indicator.active { background: var(--danger); border-color: var(--danger); box-shadow: 0 0 5px rgba(255,77,79,0.5); }
         .filter-btn { flex: 1; padding: 6px; font-size: 11px; background: #eee; color: #666; }
         .filter-btn.active { background: #444; color: white; }
-        
-        /* Mini Reorder Buttons in Header */
         .cat-header-row { background: #fafafa; padding: 4px 10px; border: 1px solid #ddd; border-bottom: none; border-radius: 4px 4px 0 0; display: flex; justify-content: space-between; align-items: center; }
         .reorder-btn { padding: 2px 6px; font-size: 10px; background: white; border: 1px solid #ccc; color: #666; font-weight: normal; }
         .reorder-btn:hover { background: #f0f0f0; }
