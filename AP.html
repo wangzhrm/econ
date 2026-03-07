@@ -116,6 +116,19 @@
             } catch (err) { container.innerHTML = "Error: " + err.message; }
         };
 
+        // NEW FUNCTION: Refreshes data while keeping your current filter selections
+        window.refreshData = async () => {
+            const currentSelections = Array.from(document.querySelectorAll('.filter-select')).map(s => s.value);
+            await loadFilters();
+            
+            const newSelects = document.querySelectorAll('.filter-select');
+            newSelects.forEach((sel, idx) => {
+                if (currentSelections[idx]) sel.value = currentSelections[idx];
+            });
+            
+            await loadQuestions();
+        };
+
         window.toggleSingleSol = (btn) => {
             const solBox = btn.closest('.q-card').querySelector('.sol-box');
             const isHidden = solBox.style.display === 'none' || solBox.style.display === '';
@@ -303,6 +316,9 @@
         <div class="filter-panel" id="filterPanel"></div>
         <div style="display:flex; gap:10px; margin-bottom:20px;">
             <button onclick="loadQuestions()" class="primary-btn">Apply Filters</button>
+            
+            <button onclick="refreshData()" class="primary-btn" style="background: #13c2c2;">Refresh Data</button>
+            
             <button onclick="openPrintBuilder()" class="primary-btn" style="background:var(--success)">Create Paper</button>
             <label style="background:#fff; padding:10px; border:1px solid #ddd; border-radius:6px; cursor:pointer; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px;">
                 <input type="checkbox" onchange="document.body.classList.toggle('show-sol')"> Show All Solutions
