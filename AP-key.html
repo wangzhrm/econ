@@ -4,9 +4,8 @@
     <title>AP Econ Knowledge Mapper</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs, doc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // UPDATED FIREBASE CONFIGURATION FOR AP ECONOMICS
         const firebaseConfig = {
             apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
             authDomain: "econap-f858f.firebaseapp.com",
@@ -24,7 +23,6 @@
         let allFetchedQuestions = []; 
         let allKnowledge = []; 
 
-        // Start app immediately without login
         async function init() {
             try {
                 await loadFilters();
@@ -54,11 +52,6 @@
             const viewCat = document.getElementById('viewKnowCatFilter');
             
             panel.innerHTML = "";
-            const template = '<option value="">All Chapters</option>';
-            knowCat.innerHTML = '<option value="">Select Chapter</option>';
-            searchCat.innerHTML = template;
-            viewCat.innerHTML = template;
-
             const roots = results.filter(c => !c.parent).sort((a,b) => (a.order || 0) - (b.order || 0));
             roots.forEach(root => {
                 const div = document.createElement('div');
@@ -86,7 +79,6 @@
 
         async function loadKnowledge() {
             const snap = await getDocs(collection(db, "Knowledge"));
-            // Synchronized with Knowledge Bank logic to ensure full retrieval and correct sorting
             allKnowledge = snap.docs.map(d => ({ id: d.id, ...d.data() }))
                                    .sort((a, b) => (a.order || 0) - (b.order || 0));
         }
@@ -94,18 +86,10 @@
         window.loadQuestions = async () => {
             const container = document.getElementById('questionList');
             try {
-                // UPDATED COLLECTION NAME
                 const snap = await getDocs(collection(db, "EconQuestion"));
                 allFetchedQuestions = [];
                 snap.forEach(docSnap => allFetchedQuestions.push({ id: docSnap.id, ...docSnap.data() }));
-
-                allFetchedQuestions.sort((a, b) => {
-                    const timeA = a.createdAt?.seconds || 0;
-                    const timeB = b.createdAt?.seconds || 0;
-                    if (timeA !== timeB) return timeA - timeB;
-                    return a.id.localeCompare(b.id);
-                });
-
+                allFetchedQuestions.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
                 renderCurrentQuestions();
             } catch (err) { container.innerHTML = "Error: " + err.message; }
         };
@@ -126,12 +110,13 @@
                 
                 let knowHtml = qKnowIds.map(kid => {
                     const k = allKnowledge.find(kn => kn.id === kid);
-                    return k ? `<div class="know-tag" onclick="enterFocusMode('${k.id}')" style="cursor:pointer">$${k.latex}$</div>` : "";
+                    if(!k) return "";
+                    return `<div class="know-tag" onclick="enterFocusMode('${k.id}')" style="cursor:pointer">$${k.latex}$</div>`;
                 }).join("");
 
                 card.innerHTML = `
                     <div class="q-card-header">
-                        <span><input type="checkbox" class="print-selector" data-id="${qData.id}"> <strong>Question ${++i}</strong></span>
+                        <span><strong>Question ${++i}</strong></span>
                         <button onclick="openAttachModal('${qData.id}')" class="small-btn">🔗 Link Knowledge (${qKnowIds.length})</button>
                     </div>
                     <div class="q-content-wrapper">
@@ -148,6 +133,44 @@
             if (window.MathJax) MathJax.typesetPromise([container]);
         };
 
+        window.updateKnowPreview = () => {
+            const rawVal = document.getElementById('knowInput').value;
+            const imgUrl = document.getElementById('knowImageUrl').value.trim();
+            const preview = document.getElementById('knowPreview');
+            
+            let content = rawVal.replace(/\n/g, '<br>') || "Knowledge Preview";
+            let html = `<div>${content}</div>`;
+            if (imgUrl) html += `<img src="${imgUrl}" style="max-width:350px; margin-top:15px; border:1px solid #ddd; border-radius:4px;">`;
+            
+            preview.innerHTML = html;
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                MathJax.typesetPromise([preview]);
+            }
+        };
+
+        window.saveKnowledge = async () => {
+            const content = document.getElementById('knowInput').value;
+            const catId = document.getElementById('knowCategory').value;
+            const imgUrl = document.getElementById('knowImageUrl').value.trim();
+
+            if(!content || !catId) return alert("Please provide content and a Chapter.");
+            try {
+                await addDoc(collection(db, "Knowledge"), { 
+                    latex: content, 
+                    imageUrl: imgUrl || null,
+                    categoryId: catId, 
+                    createdAt: new Date(),
+                    order: Date.now() 
+                });
+                alert("Knowledge Saved!");
+                document.getElementById('knowModal').style.display = 'none';
+                document.getElementById('knowInput').value = "";
+                document.getElementById('knowImageUrl').value = "";
+                document.getElementById('knowPreview').innerHTML = "";
+                await loadKnowledge();
+            } catch (e) { alert(e.message); }
+        };
+
         window.renderViewLibrary = () => {
             const search = document.getElementById('viewKnowSearch').value.toLowerCase();
             const catFilter = document.getElementById('viewKnowCatFilter').value;
@@ -161,14 +184,15 @@
             }).forEach(k => {
                 const item = document.createElement('div');
                 item.className = "search-item";
-                const encodedLatex = encodeURIComponent(k.latex);
                 item.innerHTML = `
                     <div class="search-item-text" style="cursor:pointer" onclick="document.getElementById('viewLibraryModal').style.display='none'; enterFocusMode('${k.id}')">
-                        <div class="latex-content-container">$${k.latex}$</div>
+                        <div class="latex-content-container">
+                            $${k.latex}$
+                            ${k.imageUrl ? `<br><img src="${k.imageUrl}" style="max-width:150px; margin-top:5px;">` : ''}
+                        </div>
                         <small style="color:var(--primary); font-weight:bold;">${categoryLookup[k.categoryId] || ''}</small>
                     </div>
                     <div class="search-item-actions">
-                        <button class="small-btn" onclick="editKnowledge('${k.id}', '${encodedLatex}')" style="color:var(--primary); margin-bottom:2px;">Edit</button>
                         <button class="small-btn" onclick="deleteKnowledge('${k.id}')" style="color:var(--danger)">Del</button>
                     </div>`;
                 list.appendChild(item);
@@ -176,76 +200,13 @@
             if (window.MathJax) MathJax.typesetPromise([list]);
         };
 
-        window.updateKnowPreview = () => {
-            const input = document.getElementById('knowLatex').value;
-            const preview = document.getElementById('knowPreview');
-            preview.innerHTML = '$' + input + '$';
-            if (window.MathJax) MathJax.typesetPromise([preview]);
-        };
-
-        window.editKnowledge = async (id, encodedLatex) => {
-            const currentLatex = decodeURIComponent(encodedLatex);
-            const newLatex = prompt("Edit Knowledge LaTeX:", currentLatex);
-            if (newLatex !== null && newLatex !== currentLatex) {
-                await updateDoc(doc(db, "Knowledge", id), { latex: newLatex });
-                await loadKnowledge();
-                renderViewLibrary();
-                await loadQuestions(); 
-            }
-        };
-
         window.deleteKnowledge = async (id) => {
-            if (confirm("Are you sure? It will be removed from all linked questions.")) {
+            if (confirm("Are you sure?")) {
                 await deleteDoc(doc(db, "Knowledge", id));
                 await loadKnowledge();
                 renderViewLibrary();
                 await loadQuestions();
             }
-        };
-
-        window.saveKnowledge = async () => {
-            const content = document.getElementById('knowLatex').value;
-            const catId = document.getElementById('knowCategory').value;
-            if(!content || !catId) return alert("Please provide both LaTeX and a Chapter.");
-            try {
-                await addDoc(collection(db, "Knowledge"), { 
-                    latex: content, 
-                    categoryId: catId, 
-                    createdAt: new Date(),
-                    order: Date.now() 
-                });
-                alert("Knowledge Saved!");
-                document.getElementById('knowModal').style.display = 'none';
-                document.getElementById('knowLatex').value = "";
-                document.getElementById('knowPreview').innerHTML = "";
-                await loadKnowledge();
-            } catch (e) { alert(e.message); }
-        };
-
-        async function refreshQuestionsWithScroll() {
-            const scrollPos = window.scrollY;
-            await loadQuestions();
-            if (window.MathJax) {
-                window.MathJax.typesetPromise().then(() => {
-                    window.scrollTo(0, scrollPos);
-                });
-            } else {
-                window.scrollTo(0, scrollPos);
-            }
-        }
-
-        window.attachKnowledgeToQuestion = async (qId, kId) => {
-            // UPDATED COLLECTION NAME
-            await updateDoc(doc(db, "EconQuestion", qId), { knowledgeIds: arrayUnion(kId) });
-            await refreshQuestionsWithScroll();
-            renderKnowledgeSearch();
-        };
-
-        window.removeKnowledgeFromQuestion = async (qId, kId) => {
-            // UPDATED COLLECTION NAME
-            await updateDoc(doc(db, "EconQuestion", qId), { knowledgeIds: arrayRemove(kId) });
-            await refreshQuestionsWithScroll();
-            renderKnowledgeSearch();
         };
 
         window.openAttachModal = (qId) => {
@@ -267,6 +228,7 @@
                 const isLinked = linkedIds.includes(k.id);
                 const item = document.createElement('div');
                 item.className = "search-item" + (isLinked ? " linked-item" : "");
+
                 item.innerHTML = `
                     <div class="search-item-text">
                         <div class="latex-content-container">$${k.latex}$</div>
@@ -283,21 +245,34 @@
             if (window.MathJax) MathJax.typesetPromise([list]);
         };
 
+        window.attachKnowledgeToQuestion = async (qId, kId) => {
+            await updateDoc(doc(db, "EconQuestion", qId), { knowledgeIds: arrayUnion(kId) });
+            await loadQuestions();
+            renderKnowledgeSearch();
+        };
+
+        window.removeKnowledgeFromQuestion = async (qId, kId) => {
+            await updateDoc(doc(db, "EconQuestion", qId), { knowledgeIds: arrayRemove(kId) });
+            await loadQuestions();
+            renderKnowledgeSearch();
+        };
+
         window.enterFocusMode = (kId) => {
             const k = allKnowledge.find(x => x.id === kId);
             if (!k) return;
             document.getElementById('main-content-view').style.display = 'none';
             const focusView = document.getElementById('focus-view');
             focusView.style.display = 'block';
+            
             document.getElementById('focus-header-content').innerHTML = `
                 <div style="background:#e6f7ff; padding:20px; border-radius:8px; border:1px solid #91d5ff; margin-bottom:20px;">
-                    <div style="font-size:12px; font-weight:bold; color:#0050b3; text-transform:uppercase;">${categoryLookup[k.categoryId] || 'General'}</div>
+                    <div style="font-size:12px; font-weight:bold; color:#0050b3;">${categoryLookup[k.categoryId] || 'General'}</div>
                     <div style="font-size:18px; margin-top:10px;">$${k.latex}$</div>
+                    ${k.imageUrl ? `<img src="${k.imageUrl}" style="max-width:300px; margin-top:15px; border-radius:4px; display:block;">` : ''}
                 </div>`;
             const list = document.getElementById('focus-question-list');
             list.innerHTML = "";
-            const linkedQuestions = allFetchedQuestions.filter(q => q.knowledgeIds?.includes(kId));
-            linkedQuestions.forEach((qData) => {
+            allFetchedQuestions.filter(q => q.knowledgeIds?.includes(kId)).forEach((qData) => {
                 const card = document.createElement('div');
                 card.className = "q-card";
                 card.innerHTML = `<div class="q-body">${qData.latexQuestion}</div>`;
@@ -311,9 +286,7 @@
             document.getElementById('main-content-view').style.display = 'block';
         };
 
-        // Initialize on load
         init();
-
     </script>
     <script>window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$']] } };</script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
@@ -321,28 +294,39 @@
         :root { --primary: #1890ff; --success: #52c41a; --danger: #ff4d4f; }
         body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background-color: #f4f7f9; }
         #loading-state { height: 100vh; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #888; }
-        #app-wrapper { display: none; max-width: 1000px; margin: auto; padding: 20px; flex-direction: column; }
+        #app-wrapper { display: none; max-width: 1100px; margin: auto; padding: 20px; flex-direction: column; }
+        
+        /* Layout Elements */
         .filter-panel { display: flex; gap: 15px; background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #e1e4e8; overflow-x: auto; }
         .filter-group { display: flex; flex-direction: column; gap: 5px; }
         .filter-select { padding: 8px; border-radius: 6px; border: 1px solid #ddd; min-width: 160px; }
+        
+        /* Cards */
         .q-card { border: 1px solid #e1e4e8; padding: 20px; margin-bottom: 20px; border-radius: 10px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
         .q-card-header { display: flex; justify-content: space-between; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 15px; }
         .q-body { white-space: pre-wrap; line-height: 1.6; font-size: 15px; }
         .q-content-wrapper { display: flex; gap: 20px; flex-wrap: wrap; }
         .q-text-part { flex: 1; min-width: 300px; }
         .q-image-part img { max-width: 200px; border-radius: 4px; border: 1px solid #eee; }
+        
+        /* Buttons */
         .primary-btn { padding: 10px 18px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
         .small-btn { padding: 5px 12px; font-size: 12px; border: 1px solid #d9d9d9; border-radius: 4px; cursor: pointer; background: #fff; }
-        .linked-knowledges { margin-top: 15px; padding-top: 10px; border-top: 1px dashed #eee; display: flex; gap: 8px; flex-wrap: wrap; }
-        .know-tag { background: #e6f7ff; border: 1px solid #91d5ff; color: #0050b3; padding: 2px 10px; border-radius: 4px; font-size: 13px; }
-        .sol-box { margin-top: 20px; background: #fffdf6; border: 1px solid #ffe58f; border-radius: 8px; display: none; overflow: hidden; }
-        .sol-title { background: #fff1b8; padding: 5px 15px; font-size: 12px; font-weight: bold; color: #874d00; text-transform: uppercase; border-bottom: 1px solid #ffe58f; }
-        .s-content { padding: 15px; white-space: pre-wrap; line-height: 1.6; color: #333; }
-        .show-sol .sol-box { display: block !important; }
+        .floating-actions { position: fixed; right: 20px; bottom: 30px; display: flex; flex-direction: column; gap: 12px; z-index: 5000; }
+        
+        /* Modals */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:6000; }
         .modal-content { background: white; padding: 25px; border-radius: 12px; width: 900px; max-width: 95%; max-height: 90vh; overflow-y: auto; }
-        .floating-actions { position: fixed; right: 20px; bottom: 30px; display: flex; flex-direction: column; gap: 12px; z-index: 5000; }
-        .floating-actions .primary-btn { box-shadow: 0 4px 12px rgba(0,0,0,0.2); min-width: 140px; }
+        
+        /* Single Column Input Styles */
+        .full-width-input { width: 100%; margin-bottom: 15px; box-sizing: border-box; }
+        textarea.know-input { width: 100%; height: 160px; font-family: monospace; padding: 15px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; resize: vertical; font-size: 14px; }
+        .preview-box { width: 100%; padding: 20px; border: 1px dashed var(--primary); border-radius: 8px; background: #fafafa; min-height: 120px; box-sizing: border-box; margin-top: 10px; line-height: 1.6; }
+        
+        /* Helpers */
+        .know-tag { background: #e6f7ff; border: 1px solid #91d5ff; color: #0050b3; padding: 2px 10px; border-radius: 4px; font-size: 13px; }
+        .sol-box { margin-top: 20px; background: #fffdf6; border: 1px solid #ffe58f; border-radius: 8px; display: none; }
+        .show-sol .sol-box { display: block !important; }
         .search-item { display: flex; align-items: center; border-bottom: 1px solid #f0f0f0; padding: 10px 0; gap: 15px; }
         .linked-item { background-color: #f6ffed !important; border-left: 4px solid #52c41a; padding-left: 5px; }
     </style>
@@ -356,13 +340,11 @@
                 <button onclick="document.getElementById('viewLibraryModal').style.display='flex'; renderViewLibrary();" class="primary-btn" style="background:#fa8c16">View Library</button>
                 <button onclick="document.getElementById('knowModal').style.display='flex'" class="primary-btn" style="background:#722ed1">Add Knowledge</button>
             </div>
-            <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h1 style="margin:0;">AP Econ Mapper</h1>
-            </div>
+            <h1 style="margin-bottom:20px;">AP Econ Mapper</h1>
             <div class="filter-panel" id="filterPanel"></div>
-            <div style="display:flex; gap:12px; margin-bottom:20px; align-items: center; flex-wrap: wrap;">
+            <div style="display:flex; gap:12px; margin-bottom:20px; align-items: center;">
                 <button onclick="renderCurrentQuestions()" class="primary-btn">Apply Filters</button>
-                <label style="background:#fff; padding:9px 15px; border:1px solid #ddd; border-radius:6px; cursor:pointer; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <label style="background:#fff; padding:9px 15px; border:1px solid #ddd; border-radius:6px; cursor:pointer; font-size:14px;">
                     <input type="checkbox" onchange="document.body.classList.toggle('show-sol')"> Show Solutions
                 </label>
             </div>
@@ -370,11 +352,40 @@
         </div>
 
         <div id="focus-view" style="display:none;">
-            <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 20px;">
-                <button onclick="exitFocusMode()" class="primary-btn" style="background:#8c8c8c">← Back</button>
-            </div>
+            <button onclick="exitFocusMode()" class="primary-btn" style="background:#8c8c8c; margin-bottom:20px;">← Back</button>
             <div id="focus-header-content"></div>
             <div id="focus-question-list"></div>
+        </div>
+    </div>
+
+    <div id="knowModal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 style="margin-top:0; border-bottom: 2px solid #eee; padding-bottom: 10px;">New Knowledge Entry</h2>
+            
+            <div class="full-width-input">
+                <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:8px;">Chapter / Category</label>
+                <select id="knowCategory" class="filter-select" style="width:100%;"></select>
+            </div>
+
+            <div class="full-width-input">
+                <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:8px;">Content (Supports Plain Text and $LaTeX$)</label>
+                <textarea id="knowInput" class="know-input" oninput="updateKnowPreview()" placeholder="Explain the concept here... Use single dollar signs for inline math."></textarea>
+            </div>
+
+            <div class="full-width-input">
+                <label style="display:block; font-size:13px; font-weight:bold; margin-bottom:8px;">Diagram / Image URL</label>
+                <input type="text" id="knowImageUrl" class="filter-select" style="width:100%; box-sizing:border-box;" placeholder="https://..." oninput="updateKnowPreview()">
+            </div>
+
+            <div class="full-width-input">
+                <label style="display:block; font-size:13px; font-weight:bold; color: var(--primary);">Live Preview</label>
+                <div id="knowPreview" class="preview-box">Knowledge Preview</div>
+            </div>
+
+            <div style="display:flex; gap:15px; margin-top:25px; border-top: 1px solid #eee; padding-top: 20px;">
+                <button onclick="saveKnowledge()" class="primary-btn" style="flex: 2; padding: 15px;">Save to Database</button>
+                <button onclick="document.getElementById('knowModal').style.display='none'" class="primary-btn" style="background:#8c8c8c; flex: 1;">Cancel</button>
+            </div>
         </div>
     </div>
 
@@ -385,27 +396,14 @@
                 <input type="text" id="viewKnowSearch" placeholder="Search..." oninput="renderViewLibrary()" style="padding:10px; border:1px solid #ddd; border-radius:6px;">
                 <select id="viewKnowCatFilter" onchange="renderViewLibrary()" style="padding:10px; border:1px solid #ddd; border-radius:6px;"></select>
             </div>
-            <div id="viewKnowList" style="border:1px solid #eee; max-height:500px; overflow-y:auto; padding:10px;"></div>
+            <div id="viewKnowList" style="border:1px solid #eee; max-height:400px; overflow-y:auto; padding:10px;"></div>
             <button onclick="document.getElementById('viewLibraryModal').style.display='none'" class="primary-btn" style="background:#8c8c8c; width:100%; margin-top:15px;">Close</button>
-        </div>
-    </div>
-
-    <div id="knowModal" class="modal-overlay">
-        <div class="modal-content" style="width: 500px;">
-            <h3>New Knowledge</h3>
-            <select id="knowCategory" class="filter-select" style="width:100%; margin-bottom:15px;"></select>
-            <textarea id="knowLatex" placeholder="LaTeX content..." oninput="updateKnowPreview()" style="width:100%; height:120px; padding:10px; border-radius:8px; border:1px solid #ddd; box-sizing: border-box;"></textarea>
-            <div id="knowPreview" style="margin-top:10px; padding:15px; border:1px dashed #1890ff; border-radius:8px; background:#fafafa; min-height:40px;"></div>
-            <div style="display:flex; gap:10px; margin-top:15px;">
-                <button onclick="saveKnowledge()" class="primary-btn" style="flex:1">Save</button>
-                <button onclick="document.getElementById('knowModal').style.display='none'" class="primary-btn" style="background:#8c8c8c; flex:1">Cancel</button>
-            </div>
         </div>
     </div>
 
     <div id="attachModal" class="modal-overlay">
         <div class="modal-content">
-            <h3>Link Knowledge</h3>
+            <h3>Link Knowledge to Question</h3>
             <input type="hidden" id="targetQId">
             <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
                 <input type="text" id="knowSearch" placeholder="Search..." oninput="renderKnowledgeSearch()" style="padding:10px; border:1px solid #ddd; border-radius:6px;">
