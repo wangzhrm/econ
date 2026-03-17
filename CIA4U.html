@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CIA4U Economics Student - Secure Portal</title>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
+            authDomain: "econap-f858f.firebaseapp.com",
+            projectId: "econap-f858f",
+            storageBucket: "econap-f858f.firebasestorage.app",
+            messagingSenderId: "71599790063",
+            appId: "1:71599790063:web:3a27262d254e667200c81a",
+            measurementId: "G-1C19RYE7VB"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        let categoryLookup = {}; 
+        let allFetchedQuestions = []; 
+
+        window.attemptLogin = async () => {
+            const u = document.getElementById('userInput').value;
+            const p = document.getElementById('passInput').value;
+            try {
+                const q = query(collection(db, "Student"), where("username", "==", u), where("password", "==", p));
+                const snap = await getDocs(q);
+                if (!snap.empty) {
+                    document.getElementById('login-overlay').style.display = 'none';
+                    document.getElementById('app-wrapper').style.display = 'flex';
+                    await loadFilters(); await loadQuestions();
+                } else { document.getElementById('loginMsg').innerText = "Invalid credentials."; }
+            } catch (err) { alert(err.message); }
+        };
+
+        async function loadFilters() {
+            const snap = await getDocs(collection(db, "CIA4U_Category"));
+            const results = []; categoryLookup = {}; 
+            snap.forEach(d => {
+                const data = d.data(); results.push({ id: d.id, ...data });
+                categoryLookup[d.id] = data.name;
+            });
+            const panel = document.getElementById('filterPanel');
+            panel.innerHTML = "";
+            const roots = results.filter(c => !c.parent).sort((a,b) => (a.order || 0) - (b.order || 0));
+            roots.forEach(root => {
+                const div = document.createElement('div');
+                div.className = 'filter-group';
+                div.innerHTML = `<strong>${root.name}</strong><br>`;
+                const sel = document.createElement('select');
+                sel.className = "filter-select";
+                sel.innerHTML = `<option value="">All Topics</option>`;
+                results.filter(c => (c.parent?.id || c.parent) === root.id).sort((a,b) => (a.order || 0) - (b.order || 0)).forEach(child => {
+                    sel.innerHTML += `<option value="${child.id}">${child.name}</option>`;
+                });
+                div.appendChild(sel);
+                panel.appendChild(div);
+            });
+        }
+
+        window.loadQuestions = async () => {
+            const container = document.getElementById('questionList');
+            container.innerHTML = "<p style='text-align:center;'>Fetching...</p>";
+            const selectedIds = Array.from(document.querySelectorAll('.filter-select')).map(s => s.value).filter(v => v !== "");
+            
+            try {
+                const snap = await getDocs(collection(db, "CIA4U_Questions"));
+                container.innerHTML = snap.empty ? "<p>No questions found.</p>" : "";
+                allFetchedQuestions = [];
+                let i = 0;
+                
+                snap.forEach(docSnap => {
+                    const qData = docSnap.data();
+                    const qCatIds = qData.categories || [];
+                    if (selectedIds.length > 0 && !selectedIds.every(id => qCatIds.includes(id))) return;
+
+                    const questionObj = { id: docSnap.id, ...qData };
+                    allFetchedQuestions.push(questionObj);
+
+                    const card = document.createElement('div');
+                    card.className = "q-card";
+                    card.innerHTML = `
+                        <div class="q-header-row" style="display:flex; justify-content:space-between; margin-bottom: 10px;">
+                            <span><input type="checkbox" class="print-selector" data-id="${docSnap.id}"> <strong>Question ${++i}</strong></span>
+                            <button class="toggle-sol-btn" onclick="toggleSingleSol(this)" style="padding: 5px 10px; cursor: pointer;">View Solution</button>
+                        </div>
+                        <div class="q-content-wrapper">
+                            <div class="q-text-part"><div class="q-body">${qData.latexQuestion}</div></div>
+                            ${qData.diagramUrl ? `<div class="q-image-part" style="margin-top: 10px;"><img src="${qData.diagramUrl}" style="max-width: 100%;"></div>` : ""}
+                        </div>
+                        <div class="sol-box">
+                            <div class="sol-header" style="font-weight: bold; margin-bottom: 10px;">Solution</div>
+                            <div class="s-content-wrapper" style="padding:15px; display:flex; gap:20px;">
+                                <div style="flex:1">${qData.latexSolution}</div>
+                                ${qData.solutionDiagramUrl ? `<div><img src="${qData.solutionDiagramUrl}" style="max-width:180px;"></div>` : ""}
+                            </div>
+                        </div>`;
+                    container.appendChild(card);
+                });
+                if (window.MathJax) MathJax.typesetPromise([container]);
+            } catch (err) { container.innerHTML = "Error: " + err.message; }
+        };
+
+        window.refreshData = () => {
+            loadFilters();
+            loadQuestions();
+        };
+
+        window.openPrintBuilder = () => {
+            const selectedCheckboxes = document.querySelectorAll('.print-selector:checked');
+            if (selectedCheckboxes.length === 0) return alert("Select questions first.");
+            const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+            const selectedData = allFetchedQuestions.filter(q => selectedIds.includes(q.id));
+            const builderBody = document.getElementById('builderList');
+            builderBody.innerHTML = "";
+            selectedData.forEach((q) => {
+                const item = document.createElement('div');
+                item.className = 'builder-item';
+                item.draggable = true;
+                item.dataset.id = q.id;
+                item.style.padding = "10px";
+                item.style.border = "1px solid #ccc";
+                item.style.marginBottom = "5px";
+                item.style.display = "flex";
+                item.style.justifyContent = "space-between";
+                item.innerHTML = `
+                    <div style="flex:1">${q.latexQuestion.substring(0, 40)}...</div>
+                    <div>Gap (cm): <input type="number" class="gap-size" value="4" step="0.5" style="width:50px"></div>
+                `;
+                builderBody.appendChild(item);
+            });
+            document.getElementById('app-wrapper').style.display = 'none';
+            document.getElementById('print-builder-screen').style.display = 'block';
+        };
+
+        window.generateFinalPaper = () => {
+            const builderItems = document.querySelectorAll('.builder-item');
+            const paperWindow = window.open('', '_blank');
+            let questionsHtml = "";
+            builderItems.forEach((item, index) => {
+                const id = item.dataset.id;
+                const qData = allFetchedQuestions.find(q => q.id === id);
+                const gapHeight = item.querySelector('.gap-size').value;
+                questionsHtml += `
+                <div class="paper-q">
+                    <div class="q-header">Question ${index + 1}</div>
+                    <div class="q-container">
+                        ${qData.diagramUrl ? `<img src="${qData.diagramUrl}" style="max-width:180px; float:right;">` : ""}
+                        <div>${qData.latexQuestion}</div>
+                    </div>
+                    <div style="height: ${gapHeight}cm;"></div>
+                </div>`;
+            });
+
+            paperWindow.document.write(`<html><head><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async><\/script><style>body{font-family:serif; padding:1in;} .paper-q{page-break-inside:avoid; margin-bottom:20px;} .q-header{font-weight:bold; margin-bottom: 10px;}</style></head><body>${questionsHtml}</body></html>`);
+            paperWindow.document.close();
+        };
+
+        window.toggleSingleSol = (btn) => {
+            const solBox = btn.closest('.q-card').querySelector('.sol-box');
+            const isHidden = solBox.style.display === 'none' || solBox.style.display === '';
+            solBox.style.display = isHidden ? 'block' : 'none';
+            btn.innerText = isHidden ? 'Hide Solution' : 'View Solution';
+        };
+    </script>
+    <style>
+        :root { --primary: #1890ff; --success: #52c41a; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; }
+        #app-wrapper { display: none; max-width: 900px; margin: auto; padding: 20px; flex-direction: column; }
+        .filter-panel { display: flex; gap: 15px; background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+        .q-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #eee; }
+        .sol-box { display: none; background: #f9fbf9; border: 1px solid #d3e4d3; margin-top: 15px; border-radius: 8px; padding: 15px; }
+        .primary-btn { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #login-overlay { position: fixed; inset: 0; background: #f0f2f5; z-index: 5000; display: flex; align-items: center; justify-content: center; }
+        #print-builder-screen { display:none; max-width: 800px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; }
+        body.show-sol .sol-box { display: block !important; }
+        .filter-group select { margin-top: 5px; padding: 5px; width: 150px; }
+    </style>
+</head>
+<body>
+    <div id="login-overlay">
+        <div style="background:white; padding:40px; border-radius:12px; text-align:center;">
+            <h2>CIA4U Portal Login</h2>
+            <input type="text" id="userInput" placeholder="Username" style="width:100%; padding:10px; margin-bottom:10px; box-sizing: border-box;">
+            <input type="password" id="passInput" placeholder="Password" style="width:100%; padding:10px; margin-bottom:10px; box-sizing: border-box;">
+            <button onclick="attemptLogin()" class="primary-btn" style="width:100%">Login</button>
+            <p id="loginMsg" style="color:red"></p>
+        </div>
+    </div>
+    
+    <div id="app-wrapper">
+        <header style="display:flex; justify-content:space-between; align-items:center;">
+            <h1>CIA4U Economics</h1>
+            <button class="primary-btn" style="background:#ff4d4f;" onclick="location.reload()">Logout</button>
+        </header>
+        <div class="filter-panel" id="filterPanel"></div>
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <button onclick="loadQuestions()" class="primary-btn">Apply Filters</button>
+            <button onclick="refreshData()" class="primary-btn" style="background: #13c2c2;">Refresh Data</button>
+            <button onclick="openPrintBuilder()" class="primary-btn" style="background:var(--success)">Create Paper</button>
+            <label style="background:#fff; padding:10px; border:1px solid #ddd; border-radius:6px; cursor:pointer; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" onchange="document.body.classList.toggle('show-sol')"> Show All Solutions
+            </label>
+        </div>
+        <div id="questionList"></div>
+    </div>
+
+    <div id="print-builder-screen">
+        <h2>Paper Builder</h2>
+        <p>Rearrange questions and set <b>Empty Gap (cm)</b> for writing space.</p>
+        <div id="builderList"></div>
+        <div style="margin-top:20px; display:flex; gap:10px;">
+            <button onclick="generateFinalPaper()" class="primary-btn" style="flex:2">Export PDF</button>
+            <button onclick="location.reload()" class="primary-btn" style="background:#666; flex:1">Cancel</button>
+        </div>
+    </div>
+</body>
+</html>
