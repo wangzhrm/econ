@@ -3,58 +3,61 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CIA4U Economics Admin Dashboard</title>
+    <title>CIA4U Economics Admin Dashboard - Supabase</title>
     
-    <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                processEscapes: true
-            },
-            options: {
-                enableMenu: false
-            }
-        };
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, query, where, orderBy, getDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
-            authDomain: "econap-f858f.firebaseapp.com",
-            projectId: "econap-f858f",
-            storageBucket: "econap-f858f.firebasestorage.app",
-            messagingSenderId: "71599790063",
-            appId: "1:71599790063:web:3a27262d254e667200c81a",
-            measurementId: "G-1C19RYE7VB"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = "https://btwdbphheotbqrmbswgk.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_9lY3A1HrgERNIC597NEAKQ_YTCmkh2k";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let categoryMap = {};
         let showOnlyDifficult = false;
         let allCategories = []; 
 
+        // Login Logic
         window.attemptLogin = async () => {
-            const u = document.getElementById('userInput').value;
-            const p = document.getElementById('passInput').value;
+            const u = document.getElementById('userInput').value.trim();
+            const p = document.getElementById('passInput').value.trim();
+            
             try {
-                const q = query(collection(db, "Master"), where("username", "==", u), where("password", "==", p));
-                const snap = await getDocs(q);
-                if (!snap.empty) {
+                // Using .ilike for username to avoid case-sensitivity issues
+                const { data, error } = await supabaseClient
+                    .from('cia4u_master')
+                    .select('*')
+                    .ilike('username', u)
+                    .eq('password', p);
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
                     document.getElementById('login-overlay').style.display = 'none';
                     document.getElementById('app-wrapper').style.display = 'flex';
-                    await renderApp(); fetchQuestions();
-                } else { alert("Login failed"); }
-            } catch (err) { alert(err.message); }
+                    await renderApp(); 
+                    fetchQuestions();
+                } else { 
+                    alert("Login failed. Please check credentials or RLS settings in Supabase."); 
+                }
+            } catch (err) { 
+                alert("Database Error: " + err.message); 
+            }
         };
 
-        window.toggleDrawer = () => { document.getElementById('drawer').classList.toggle('open'); };
+        window.toggleDrawer = () => { 
+            const drawer = document.getElementById('drawer');
+            const toggleBar = document.getElementById('toggle-bar');
+            drawer.classList.toggle('open');
+            
+            // Move the toggle bar with the drawer
+            if (drawer.classList.contains('open')) {
+                toggleBar.style.left = '320px';
+            } else {
+                toggleBar.style.left = '0px';
+            }
+        };
 
         window.setFilter = (isDiff) => {
             showOnlyDifficult = isDiff;
@@ -73,12 +76,12 @@
             document.getElementById('sText').innerHTML = sVal.replace(/\n/g, '<br>') || "Solution Preview";
             
             const diagDiv = document.getElementById('qDiag');
-            if (qUrl) { diagDiv.innerHTML = `<img src="${qUrl}">`; diagDiv.style.display = 'block'; }
-            else { diagDiv.style.display = 'none'; }
+            diagDiv.innerHTML = qUrl ? `<img src="${qUrl}">` : "";
+            diagDiv.style.display = qUrl ? 'block' : 'none';
 
             const solDiagDiv = document.getElementById('sDiag');
-            if (sUrl) { solDiagDiv.innerHTML = `<img src="${sUrl}">`; solDiagDiv.style.display = 'block'; }
-            else { solDiagDiv.style.display = 'none'; }
+            solDiagDiv.innerHTML = sUrl ? `<img src="${sUrl}">` : "";
+            solDiagDiv.style.display = sUrl ? 'block' : 'none';
             
             if (window.MathJax && window.MathJax.typesetPromise) {
                 MathJax.typesetPromise([document.getElementById('qText'), document.getElementById('sText')]);
@@ -90,40 +93,47 @@
             const selects = document.querySelectorAll('.question-cat-select');
             let catIds = [];
             selects.forEach(s => catIds = catIds.concat(Array.from(s.selectedOptions).map(o => o.value)));
-            if (catIds.length === 0) return alert("Select at least one category");
-            if (!document.getElementById('sInput').value.trim()) return alert("Please enter a solution before saving.");
             
-            const data = {
-                latexQuestion: document.getElementById('qInput').value,
-                latexSolution: document.getElementById('sInput').value,
-                diagramUrl: document.getElementById('diagUrl').value.trim(),
-                solutionDiagramUrl: document.getElementById('solDiagUrl').value.trim(),
-                isDifficult: document.getElementById('diffToggle').classList.contains('active'),
+            if (catIds.length === 0) return alert("Select at least one category");
+            if (!document.getElementById('sInput').value.trim()) return alert("Please enter a solution.");
+            
+            const payload = {
+                latex_question: document.getElementById('qInput').value,
+                latex_solution: document.getElementById('sInput').value,
+                diagram_url: document.getElementById('diagUrl').value.trim(),
+                solution_diagram_url: document.getElementById('solDiagUrl').value.trim(),
+                is_difficult: document.getElementById('diffToggle').classList.contains('active'),
                 categories: catIds,
-                updatedAt: new Date()
+                updated_at: new Date()
             };
 
             try {
-                if (qId) await setDoc(doc(db, "CIA4U_Questions", qId), data, { merge: true });
-                else await addDoc(collection(db, "CIA4U_Questions"), { ...data, createdAt: new Date() });
+                let error;
+                if (qId) {
+                    ({ error } = await supabaseClient.from('cia4u_questions').update(payload).eq('id', qId));
+                } else {
+                    ({ error } = await supabaseClient.from('cia4u_questions').insert([payload]));
+                }
+                
+                if (error) throw error;
                 alert("Success!"); resetEditor(false); fetchQuestions();
             } catch (e) { alert(e.message); }
         };
 
         window.editQuestion = async (id) => {
-            const docSnap = await getDoc(doc(db, "CIA4U_Questions", id));
-            if (docSnap.exists()) {
-                const q = docSnap.data();
+            const { data, error } = await supabaseClient.from('cia4u_questions').select('*').eq('id', id).single();
+            if (data) {
                 document.getElementById('editingId').value = id;
-                document.getElementById('qInput').value = q.latexQuestion || "";
-                document.getElementById('sInput').value = q.latexSolution || "";
-                document.getElementById('diagUrl').value = q.diagramUrl || "";
-                document.getElementById('solDiagUrl').value = q.solutionDiagramUrl || "";
+                document.getElementById('qInput').value = data.latex_question || "";
+                document.getElementById('sInput').value = data.latex_solution || "";
+                document.getElementById('diagUrl').value = data.diagram_url || "";
+                document.getElementById('solDiagUrl').value = data.solution_diagram_url || "";
                 document.getElementById('cancelEdit').style.display = "block";
-                if(q.isDifficult) document.getElementById('diffToggle').classList.add('active');
+                
+                if(data.is_difficult) document.getElementById('diffToggle').classList.add('active');
                 else document.getElementById('diffToggle').classList.remove('active');
                 
-                const selectedIds = q.categories || [];
+                const selectedIds = data.categories || [];
                 document.querySelectorAll('.question-cat-select').forEach(sel => {
                     Array.from(sel.options).forEach(opt => opt.selected = selectedIds.includes(opt.value));
                 });
@@ -132,7 +142,10 @@
         };
 
         window.deleteQuestion = async (id) => {
-            if (confirm("Delete permanently?")) { await deleteDoc(doc(db, "CIA4U_Questions", id)); fetchQuestions(); }
+            if (confirm("Delete permanently?")) { 
+                await supabaseClient.from('cia4u_questions').delete().eq('id', id); 
+                fetchQuestions(); 
+            }
         };
 
         window.resetEditor = (force) => {
@@ -149,159 +162,217 @@
 
         window.fetchQuestions = async () => {
             const search = document.getElementById('qSearch').value;
-            const qRef = collection(db, "CIA4U_Questions");
-            let snap = await getDocs(query(qRef, orderBy("createdAt", "desc")));
-            
+            let query = supabaseClient.from('cia4u_questions').select('*').order('created_at', { ascending: false });
+
+            if (showOnlyDifficult) query = query.eq('is_difficult', true);
+            if (search) query = query.ilike('latex_question', `%${search}%`);
+
+            const { data: questions } = await query;
             const container = document.getElementById('existingQuestionsList');
             container.innerHTML = "";
-            snap.forEach(d => {
-                const q = d.data();
-                if(showOnlyDifficult && !q.isDifficult) return;
-                if(search && !q.latexQuestion.includes(search)) return;
 
+            questions?.forEach(q => {
                 const tags = (q.categories || []).map(id => `<span class="tag">${categoryMap[id] || '...'}</span>`).join('');
                 const div = document.createElement('div');
                 div.className = 'q-list-item';
-                div.style.borderLeft = q.isDifficult ? "4px solid var(--danger)" : "1px solid #eee";
+                div.style.borderLeft = q.is_difficult ? "4px solid var(--danger)" : "1px solid #eee";
                 div.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items: center; margin-bottom: 5px;"><div>${tags}</div></div>
-                    <div style="color:#666; margin:5px 0; font-size:11px;">${(q.latexQuestion || '').substring(0,60)}...</div>
-                    <div class="btn-action-group"><button class="btn-sm btn-edit" onclick="editQuestion('${d.id}')">Edit</button><button class="btn-sm btn-remove" onclick="deleteQuestion('${d.id}')">Remove</button></div>`;
+                    <div style="color:#666; margin:5px 0; font-size:11px;">${(q.latex_question || '').substring(0,60)}...</div>
+                    <div class="btn-action-group">
+                        <button class="btn-sm btn-edit" onclick="editQuestion('${q.id}')">Edit</button>
+                        <button class="btn-sm btn-remove" onclick="deleteQuestion('${q.id}')">Remove</button>
+                    </div>`;
                 container.appendChild(div);
             });
         };
 
         window.renderApp = async () => {
-            const snap = await getDocs(query(collection(db, "CIA4U_Category"), orderBy("order")));
-            allCategories = []; categoryMap = {};
-            snap.forEach(d => {
-                const data = d.data();
-                allCategories.push({ id: d.id, ...data });
-                categoryMap[d.id] = data.name;
-            });
+            const { data: categories } = await supabaseClient.from('cia4u_categories').select('*').order('order');
+            allCategories = categories || [];
+            categoryMap = {};
+            allCategories.forEach(c => categoryMap[c.id] = c.name);
 
             const editor = document.getElementById('editorHierarchies');
             const targetParent = document.getElementById('targetParent');
             editor.innerHTML = "";
             targetParent.innerHTML = '<option value="">New Root</option>';
             
-            const roots = allCategories.filter(c => !c.parent);
+            const roots = allCategories.filter(c => !c.parent_id);
             roots.forEach(root => {
-                const children = allCategories.filter(c => (c.parent?.id || c.parent) === root.id);
+                const children = allCategories.filter(c => c.parent_id === root.id);
                 const box = document.createElement('div');
                 box.style.marginBottom = "15px";
                 box.innerHTML = `
-                    <div class="cat-header-row">
-                        <strong style="font-size: 11px;">${root.name}</strong>
-                    </div>
+                    <div class="cat-header-row"><strong style="font-size: 11px;">${root.name}</strong></div>
                     <select multiple class="question-cat-select" style="width:100%; height:150px;">
                         ${children.map(ch => `<option value="${ch.id}">${ch.name}</option>`).join('')}
                     </select>`;
                 editor.appendChild(box);
                 targetParent.innerHTML += `<option value="${root.id}">${root.name}</option>`;
             });
-        }
+        };
 
         window.addCategory = async () => {
             const n = document.getElementById('newCatName').value;
             const p = document.getElementById('targetParent').value;
             if(!n) return;
-            const siblingsCount = allCategories.filter(cat => (cat.parent?.id || cat.parent) === p).length;
-            await addDoc(collection(db, "CIA4U_Category"), {
-                name: n, order: siblingsCount + 1, parent: p ? doc(db, "CIA4U_Category", p) : null
-            });
-            document.getElementById('newCatName').value = ""; await renderApp();
+            const siblingsCount = allCategories.filter(cat => cat.parent_id === (p || null)).length;
+            await supabaseClient.from('cia4u_categories').insert([{
+                name: n, order: siblingsCount + 1, parent_id: p || null
+            }]);
+            document.getElementById('newCatName').value = ""; 
+            await renderApp();
         };
     </script>
+
     <style>
         :root { --primary: #1890ff; --success: #52c41a; --danger: #ff4d4f; --sidebar-w: 320px; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; background: #f0f2f5; overflow: hidden; }
+        
         #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f0f2f5; z-index: 5000; display: flex; align-items: center; justify-content: center; }
-        .login-card { background: white; padding: 40px; border-radius: 12px; width: 350px; text-align: center; }
+        .login-card { background: white; padding: 40px; border-radius: 12px; width: 350px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .login-card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        #app-wrapper { display: none; width: 100%; height: 100%; flex-direction: row; }
-        #drawer { position: fixed; left: calc(-1 * var(--sidebar-w)); top: 0; width: var(--sidebar-w); height: 100%; background: white; z-index: 1000; transition: 0.3s; padding: 20px; box-sizing: border-box; }
+        
+        #app-wrapper { display: none; width: 100%; height: 100%; position: relative; }
+        
+        #drawer { 
+            position: fixed; 
+            left: calc(-1 * var(--sidebar-w)); 
+            top: 0; 
+            width: var(--sidebar-w); 
+            height: 100%; 
+            background: white; 
+            z-index: 1000; 
+            transition: 0.3s ease; 
+            padding: 20px; 
+            box-sizing: border-box; 
+            border-right: 1px solid #ddd;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.05);
+        }
         #drawer.open { left: 0; }
-        #toggle-bar { position: fixed; left: 0; top: 0; width: 30px; height: 100%; background: #444; color: white; cursor: pointer; z-index: 1001; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; font-size: 11px; }
-        .main-container { flex: 1; display: flex; margin-left: 30px; }
+        
+        #toggle-bar { 
+            position: fixed; 
+            left: 0; 
+            top: 0; 
+            width: 30px; 
+            height: 100%; 
+            background: #444; 
+            color: white; 
+            cursor: pointer; 
+            z-index: 1001; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            writing-mode: vertical-rl; 
+            font-size: 11px;
+            transition: 0.3s ease;
+        }
+        
+        .main-container { flex: 1; display: flex; margin-left: 30px; transition: 0.3s ease; width: calc(100% - 30px); }
         .editor-area { flex: 1; padding: 20px; overflow-y: auto; }
         .right-sidebar { width: 420px; background: #fff; border-left: 1px solid #ddd; padding: 20px; overflow-y: auto; }
-        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        
+        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee; }
         textarea, .url-input { width: 100%; margin: 10px 0; border: 1px solid #d9d9d9; padding: 10px; border-radius: 4px; box-sizing: border-box; }
         textarea { height: 120px; font-family: monospace; }
-        .preview-container { display: flex; gap: 15px; padding: 15px; border: 1px dashed #ccc; margin-bottom: 20px; }
-        .preview-text { flex: 1; font-size: 14px; }
-        .preview-diagram img { max-width: 200px; }
+        
+        .preview-container { display: flex; gap: 15px; padding: 15px; border: 1px dashed #ccc; margin-bottom: 20px; background: #fafafa; }
+        .preview-text { flex: 1; font-size: 14px; line-height: 1.6; }
+        .preview-diagram img { max-width: 200px; border: 1px solid #eee; }
+        
         .tag { background: #e6f7ff; color: #1890ff; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px; border: 1px solid #91d5ff; }
-        .q-list-item { padding: 12px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 6px; font-size: 12px; }
+        .q-list-item { padding: 12px; border: 1px solid #eee; margin-bottom: 10px; border-radius: 6px; font-size: 12px; background: #fff; }
+        
         .primary-btn { background: var(--primary); color: white; width: 100%; padding: 10px; border: none; cursor: pointer; border-radius: 4px; }
         .save-btn { background: var(--success); color: white; width: 100%; padding: 12px; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; }
+        
         .diff-indicator { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #ccc; cursor: pointer; display: inline-block; }
         .diff-indicator.active { background: var(--danger); border-color: var(--danger); }
+        
         .cat-header-row { background: #fafafa; padding: 4px 10px; border: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
         .filter-btn { padding: 5px 10px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; flex: 1; border-radius: 4px; }
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        .btn-sm { padding: 4px 8px; border-radius: 3px; border: none; cursor: pointer; font-size: 10px; }
+        .btn-edit { background: #e6f7ff; color: #1890ff; }
+        .btn-remove { background: #fff1f0; color: #f5222d; margin-left: 5px; }
     </style>
 </head>
 <body>
-<div id="login-overlay">
-    <div class="login-card">
-        <h2>CIA4U Economics Login</h2>
-        <input type="text" id="userInput" placeholder="Username">
-        <input type="password" id="passInput" placeholder="Password">
-        <button onclick="attemptLogin()" class="primary-btn">Unlock System</button>
+    <div id="login-overlay">
+        <div class="login-card">
+            <h2>CIA4U Economics Admin</h2>
+            <input type="text" id="userInput" placeholder="Username">
+            <input type="password" id="passInput" placeholder="Password">
+            <button onclick="attemptLogin()" class="primary-btn">Unlock System</button>
+        </div>
     </div>
-</div>
 
-<div id="app-wrapper">
-    <div id="drawer">
-        <h3>CIA4U Categories</h3>
-        <input type="text" id="newCatName" placeholder="New Category..." style="width: 100%; padding: 8px; box-sizing: border-box;">
-        <select id="targetParent" style="width:100%; margin: 10px 0; padding: 8px;"><option value="">New Root</option></select>
-        <button onclick="addCategory()" class="primary-btn">Add Category</button>
-    </div>
-    <div id="toggle-bar" onclick="toggleDrawer()">☰ CATEGORIES</div>
+    <div id="app-wrapper">
+        <div id="drawer">
+            <h3>CIA4U Categories</h3>
+            <input type="text" id="newCatName" placeholder="New Category Name..." style="width: 100%; padding: 8px; box-sizing: border-box;">
+            <select id="targetParent" style="width:100%; margin: 10px 0; padding: 8px;"><option value="">New Root</option></select>
+            <button onclick="addCategory()" class="primary-btn">Add Category</button>
+            <p style="font-size: 11px; color: #999; margin-top: 20px;">Use the drawer to organize the curriculum hierarchy.</p>
+        </div>
+        
+        <div id="toggle-bar" onclick="toggleDrawer()">☰ CATEGORIES</div>
 
-    <div class="main-container">
-        <div class="editor-area">
-            <div class="card">
-                <h2>CIA4U Question Editor</h2>
-                <input type="hidden" id="editingId" value="">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <strong>Question LaTeX</strong>
-                    <div id="diffToggle" class="diff-indicator" onclick="this.classList.toggle('active')"></div>
-                    <span style="font-size: 12px; color: #999;">Difficult</span>
+        <div class="main-container">
+            <div class="editor-area">
+                <div class="card">
+                    <h2>Question Editor</h2>
+                    <input type="hidden" id="editingId" value="">
+                    
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom: 5px;">
+                        <strong>Question LaTeX</strong>
+                        <div id="diffToggle" class="diff-indicator" onclick="this.classList.toggle('active')"></div>
+                        <span style="font-size: 12px; color: #999;">Difficult</span>
+                    </div>
+                    
+                    <textarea id="qInput" oninput="updatePreviews()" placeholder="Type LaTeX equation or text here..."></textarea>
+                    
+                    <strong>Diagram URL</strong>
+                    <input type="text" id="diagUrl" class="url-input" placeholder="Paste image link here..." oninput="updatePreviews()">
+                    
+                    <div class="preview-container">
+                        <div id="qText" class="preview-text">Question Preview</div>
+                        <div id="qDiag" class="preview-diagram"></div>
+                    </div>
+                    
+                    <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+                    
+                    <strong>Solution LaTeX</strong>
+                    <textarea id="sInput" oninput="updatePreviews()" placeholder="Type detailed solution..."></textarea>
+                    
+                    <strong>Solution Diagram URL</strong>
+                    <input type="text" id="solDiagUrl" class="url-input" placeholder="Paste solution diagram link..." oninput="updatePreviews()">
+                    
+                    <div class="preview-container">
+                        <div id="sText" class="preview-text">Solution Preview</div>
+                        <div id="sDiag" class="preview-diagram"></div>
+                    </div>
                 </div>
-                <textarea id="qInput" oninput="updatePreviews()" placeholder="Type LaTeX here..."></textarea>
-                <strong>Question Diagram Image URL (Optional)</strong>
-                <input type="text" id="diagUrl" class="url-input" placeholder="https://..." oninput="updatePreviews()">
-                <div class="preview-container"><div id="qText" class="preview-text">Question Preview</div><div id="qDiag" class="preview-diagram"></div></div>
+            </div>
+
+            <div class="right-sidebar">
+                <h3>Categorization</h3>
+                <div id="editorHierarchies"></div>
+                <button class="save-btn" onclick="submitQuestion()">SAVE QUESTION</button>
+                <button id="cancelEdit" style="display:none; margin-top:10px; width:100%; padding: 8px; background: #8c8c8c; color: white; border: none; cursor: pointer; border-radius: 4px;" onclick="resetEditor(true)">Cancel Editing</button>
                 
-                <strong>Solution LaTeX</strong>
-                <textarea id="sInput" oninput="updatePreviews()" placeholder="Type LaTeX here..."></textarea>
-                <strong>Solution Diagram Image URL (Optional)</strong>
-                <input type="text" id="solDiagUrl" class="url-input" placeholder="https://..." oninput="updatePreviews()">
-                <div id="sP-box" class="preview-container">
-                    <div id="sText" class="preview-text">Solution Preview</div>
-                    <div id="sDiag" class="preview-diagram"></div>
+                <h3 style="margin-top:30px; border-top: 1px solid #eee; pt-20">Database Manager</h3>
+                <div style="display:flex; gap:5px; margin-bottom:10px;">
+                    <button id="filterAll" class="filter-btn active" onclick="setFilter(false)">All</button>
+                    <button id="filterDiff" class="filter-btn" onclick="setFilter(true)">Difficult</button>
                 </div>
+                <input type="text" id="qSearch" placeholder="Search questions..." oninput="fetchQuestions()" class="url-input">
+                <div id="existingQuestionsList"></div>
             </div>
-        </div>
-
-        <div class="right-sidebar">
-            <h3>Categorization</h3>
-            <div id="editorHierarchies"></div>
-            <button class="save-btn" onclick="submitQuestion()">SAVE QUESTION</button>
-            <button id="cancelEdit" style="display:none; margin-top:10px; width:100%; padding: 8px; background: #8c8c8c; color: white; border: none; cursor: pointer;" onclick="resetEditor(true)">Cancel Edit</button>
-            <h3 style="margin-top:20px;">Manager</h3>
-            <div style="display:flex; gap:5px; margin-bottom:10px;">
-                <button id="filterAll" class="filter-btn active" onclick="setFilter(false)">All</button>
-                <button id="filterDiff" class="filter-btn" onclick="setFilter(true)">Difficult Only</button>
-            </div>
-            <input type="text" id="qSearch" placeholder="Search questions..." oninput="fetchQuestions()" class="url-input">
-            <div id="existingQuestionsList"></div>
         </div>
     </div>
-</div>
 </body>
 </html>
