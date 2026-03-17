@@ -1,102 +1,110 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CIA4U Economics Student - Secure Portal</title>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        window.MathJax = { tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$']] } };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <script>
+        // 1. Initialize Supabase
+        const SUPABASE_URL = "https://btwdbphheotbqrmbswgk.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_9lY3A1HrgERNIC597NEAKQ_YTCmkh2k";
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
-            authDomain: "econap-f858f.firebaseapp.com",
-            projectId: "econap-f858f",
-            storageBucket: "econap-f858f.firebasestorage.app",
-            messagingSenderId: "71599790063",
-            appId: "1:71599790063:web:3a27262d254e667200c81a",
-            measurementId: "G-1C19RYE7VB"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        
         let categoryLookup = {}; 
         let allFetchedQuestions = []; 
 
+        // 2. Login Logic
         window.attemptLogin = async () => {
-            const u = document.getElementById('userInput').value;
-            const p = document.getElementById('passInput').value;
+            const u = document.getElementById('userInput').value.trim();
+            const p = document.getElementById('passInput').value.trim();
+            const msg = document.getElementById('loginMsg');
+            
             try {
-                const q = query(collection(db, "Student"), where("username", "==", u), where("password", "==", p));
-                const snap = await getDocs(q);
-                if (!snap.empty) {
+                const { data, error } = await supabaseClient
+                    .from('cia4u_students')
+                    .select('*')
+                    .ilike('username', u) 
+                    .eq('password', p);   
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
                     document.getElementById('login-overlay').style.display = 'none';
                     document.getElementById('app-wrapper').style.display = 'flex';
-                    await loadFilters(); await loadQuestions();
-                } else { document.getElementById('loginMsg').innerText = "Invalid credentials."; }
-            } catch (err) { alert(err.message); }
+                    await loadFilters(); 
+                    await loadQuestions();
+                } else { 
+                    msg.innerText = "Invalid credentials."; 
+                }
+            } catch (err) { alert("Error: " + err.message); }
         };
 
+        // 3. Load Filters (Horizontal Row)
         async function loadFilters() {
-            const snap = await getDocs(collection(db, "CIA4U_Category"));
-            const results = []; categoryLookup = {}; 
-            snap.forEach(d => {
-                const data = d.data(); results.push({ id: d.id, ...data });
-                categoryLookup[d.id] = data.name;
-            });
+            const { data: results, error } = await supabaseClient
+                .from('cia4u_categories')
+                .select('*')
+                .order('order', { ascending: true });
+
+            if (error) return;
+
+            categoryLookup = {}; 
             const panel = document.getElementById('filterPanel');
-            panel.innerHTML = "";
-            const roots = results.filter(c => !c.parent).sort((a,b) => (a.order || 0) - (b.order || 0));
+            panel.innerHTML = ""; // Clear existing
+            
+            results.forEach(c => categoryLookup[c.id] = c.name);
+
+            const roots = results.filter(c => !c.parent_id);
             roots.forEach(root => {
-                const div = document.createElement('div');
-                div.className = 'filter-group';
-                div.innerHTML = `<strong>${root.name}</strong><br>`;
                 const sel = document.createElement('select');
                 sel.className = "filter-select";
-                sel.innerHTML = `<option value="">All Topics</option>`;
-                results.filter(c => (c.parent?.id || c.parent) === root.id).sort((a,b) => (a.order || 0) - (b.order || 0)).forEach(child => {
+                sel.innerHTML = `<option value="">All ${root.name}</option>`;
+                
+                results.filter(c => c.parent_id === root.id).forEach(child => {
                     sel.innerHTML += `<option value="${child.id}">${child.name}</option>`;
                 });
-                div.appendChild(sel);
-                panel.appendChild(div);
+                panel.appendChild(sel);
             });
         }
 
+        // 4. Fetch Questions
         window.loadQuestions = async () => {
             const container = document.getElementById('questionList');
-            container.innerHTML = "<p style='text-align:center;'>Fetching...</p>";
+            container.innerHTML = "<p style='text-align:center;'>Fetching questions...</p>";
             const selectedIds = Array.from(document.querySelectorAll('.filter-select')).map(s => s.value).filter(v => v !== "");
             
             try {
-                const snap = await getDocs(collection(db, "CIA4U_Questions"));
-                container.innerHTML = snap.empty ? "<p>No questions found.</p>" : "";
-                allFetchedQuestions = [];
-                let i = 0;
+                let query = supabaseClient.from('cia4u_questions').select('*');
+                if (selectedIds.length > 0) query = query.contains('categories', selectedIds);
+
+                const { data: questions, error } = await query;
+                if (error) throw error;
+
+                container.innerHTML = questions.length === 0 ? "<p style='text-align:center;'>No questions found.</p>" : "";
+                allFetchedQuestions = questions;
                 
-                snap.forEach(docSnap => {
-                    const qData = docSnap.data();
-                    const qCatIds = qData.categories || [];
-                    if (selectedIds.length > 0 && !selectedIds.every(id => qCatIds.includes(id))) return;
-
-                    const questionObj = { id: docSnap.id, ...qData };
-                    allFetchedQuestions.push(questionObj);
-
+                questions.forEach((q, i) => {
                     const card = document.createElement('div');
                     card.className = "q-card";
                     card.innerHTML = `
-                        <div class="q-header-row" style="display:flex; justify-content:space-between; margin-bottom: 10px;">
-                            <span><input type="checkbox" class="print-selector" data-id="${docSnap.id}"> <strong>Question ${++i}</strong></span>
-                            <button class="toggle-sol-btn" onclick="toggleSingleSol(this)" style="padding: 5px 10px; cursor: pointer;">View Solution</button>
+                        <div class="q-header-row">
+                            <span><input type="checkbox" class="print-selector" data-id="${q.id}"> <strong>Question ${i + 1}</strong></span>
+                            <button class="toggle-sol-btn" onclick="toggleSingleSol(this)">View Solution</button>
                         </div>
                         <div class="q-content-wrapper">
-                            <div class="q-text-part"><div class="q-body">${qData.latexQuestion}</div></div>
-                            ${qData.diagramUrl ? `<div class="q-image-part" style="margin-top: 10px;"><img src="${qData.diagramUrl}" style="max-width: 100%;"></div>` : ""}
+                            <div class="q-body">${q.latex_question || ""}</div>
+                            ${q.diagram_url ? `<img src="${q.diagram_url}" class="q-img">` : ""}
                         </div>
                         <div class="sol-box">
-                            <div class="sol-header" style="font-weight: bold; margin-bottom: 10px;">Solution</div>
-                            <div class="s-content-wrapper" style="padding:15px; display:flex; gap:20px;">
-                                <div style="flex:1">${qData.latexSolution}</div>
-                                ${qData.solutionDiagramUrl ? `<div><img src="${qData.solutionDiagramUrl}" style="max-width:180px;"></div>` : ""}
-                            </div>
+                            <div class="sol-header">Solution</div>
+                            <div class="s-content">${q.latex_solution || ""}</div>
                         </div>`;
                     container.appendChild(card);
                 });
@@ -104,118 +112,141 @@
             } catch (err) { container.innerHTML = "Error: " + err.message; }
         };
 
-        window.refreshData = () => {
-            loadFilters();
-            loadQuestions();
-        };
-
-        window.openPrintBuilder = () => {
-            const selectedCheckboxes = document.querySelectorAll('.print-selector:checked');
-            if (selectedCheckboxes.length === 0) return alert("Select questions first.");
-            const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
-            const selectedData = allFetchedQuestions.filter(q => selectedIds.includes(q.id));
-            const builderBody = document.getElementById('builderList');
-            builderBody.innerHTML = "";
-            selectedData.forEach((q) => {
-                const item = document.createElement('div');
-                item.className = 'builder-item';
-                item.draggable = true;
-                item.dataset.id = q.id;
-                item.style.padding = "10px";
-                item.style.border = "1px solid #ccc";
-                item.style.marginBottom = "5px";
-                item.style.display = "flex";
-                item.style.justifyContent = "space-between";
-                item.innerHTML = `
-                    <div style="flex:1">${q.latexQuestion.substring(0, 40)}...</div>
-                    <div>Gap (cm): <input type="number" class="gap-size" value="4" step="0.5" style="width:50px"></div>
-                `;
-                builderBody.appendChild(item);
-            });
-            document.getElementById('app-wrapper').style.display = 'none';
-            document.getElementById('print-builder-screen').style.display = 'block';
-        };
-
-        window.generateFinalPaper = () => {
-            const builderItems = document.querySelectorAll('.builder-item');
-            const paperWindow = window.open('', '_blank');
-            let questionsHtml = "";
-            builderItems.forEach((item, index) => {
-                const id = item.dataset.id;
-                const qData = allFetchedQuestions.find(q => q.id === id);
-                const gapHeight = item.querySelector('.gap-size').value;
-                questionsHtml += `
-                <div class="paper-q">
-                    <div class="q-header">Question ${index + 1}</div>
-                    <div class="q-container">
-                        ${qData.diagramUrl ? `<img src="${qData.diagramUrl}" style="max-width:180px; float:right;">` : ""}
-                        <div>${qData.latexQuestion}</div>
-                    </div>
-                    <div style="height: ${gapHeight}cm;"></div>
-                </div>`;
-            });
-
-            paperWindow.document.write(`<html><head><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async><\/script><style>body{font-family:serif; padding:1in;} .paper-q{page-break-inside:avoid; margin-bottom:20px;} .q-header{font-weight:bold; margin-bottom: 10px;}</style></head><body>${questionsHtml}</body></html>`);
-            paperWindow.document.close();
+        // 5. Utility Functions
+        window.refreshData = async () => {
+            await loadFilters();
+            await loadQuestions();
         };
 
         window.toggleSingleSol = (btn) => {
             const solBox = btn.closest('.q-card').querySelector('.sol-box');
             const isHidden = solBox.style.display === 'none' || solBox.style.display === '';
             solBox.style.display = isHidden ? 'block' : 'none';
-            btn.innerText = isHidden ? 'Hide Solution' : 'View Solution';
+            btn.innerText = isHidden ? "Hide Solution" : "View Solution";
         };
+
+        window.toggleAllSolutions = (cb) => {
+            document.body.classList.toggle('show-all-solutions', cb.checked);
+        };
+
+        // 6. Paper Builder Logic
+        window.openPrintBuilder = () => {
+            const selected = document.querySelectorAll('.print-selector:checked');
+            if (selected.length === 0) return alert("Select questions first using the checkboxes.");
+            
+            const selectedIds = Array.from(selected).map(cb => cb.dataset.id);
+            const selectedData = allFetchedQuestions.filter(q => selectedIds.includes(q.id));
+            
+            const builderList = document.getElementById('builderList');
+            builderList.innerHTML = "";
+            
+            selectedData.forEach(q => {
+                const item = document.createElement('div');
+                item.className = 'builder-item';
+                item.innerHTML = `
+                    <div style="flex:1">Question Summary...</div>
+                    <div>Gap (cm): <input type="number" class="gap-size" value="4" style="width:50px"></div>
+                `;
+                builderList.appendChild(item);
+            });
+
+            document.getElementById('app-wrapper').style.display = 'none';
+            document.getElementById('print-builder-screen').style.display = 'block';
+        };
+
+        window.closeBuilder = () => {
+            document.getElementById('app-wrapper').style.display = 'flex';
+            document.getElementById('print-builder-screen').style.display = 'none';
+        }
     </script>
+
     <style>
-        :root { --primary: #1890ff; --success: #52c41a; }
-        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; }
-        #app-wrapper { display: none; max-width: 900px; margin: auto; padding: 20px; flex-direction: column; }
-        .filter-panel { display: flex; gap: 15px; background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 20px; flex-wrap: wrap; }
-        .q-card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #eee; }
-        .sol-box { display: none; background: #f9fbf9; border: 1px solid #d3e4d3; margin-top: 15px; border-radius: 8px; padding: 15px; }
-        .primary-btn { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        #login-overlay { position: fixed; inset: 0; background: #f0f2f5; z-index: 5000; display: flex; align-items: center; justify-content: center; }
+        :root { --primary: #1890ff; --success: #52c41a; --bg: #f0f2f5; --danger: #ff4d4f; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; background: var(--bg); color: #333; }
+        
+        /* Login Styles */
+        #login-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .login-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 320px; text-align: center; }
+        .login-card input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .login-btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        
+        /* App Layout */
+        #app-wrapper { display: none; flex-direction: column; min-height: 100vh; max-width: 1000px; margin: 0 auto; padding: 0 20px; }
+        header { background: #001529; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-radius: 0 0 8px 8px; }
+        
+        /* Action Bar (Filters + Buttons) */
+        .action-bar { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; border: 1px solid #e8e8e8; }
+        .filter-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+        .button-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        
+        .filter-select { padding: 8px; border: 1px solid #ddd; border-radius: 4px; min-width: 150px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; color: white; }
+        .btn-primary { background: var(--primary); }
+        .btn-refresh { background: #13c2c2; }
+        .btn-success { background: var(--success); }
+        
+        /* Question Cards */
+        .q-card { background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e8e8e8; }
+        .q-header-row { border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .q-img { max-width: 200px; margin-top: 10px; border-radius: 4px; }
+        
+        /* Solution Boxes */
+        .sol-box { margin-top: 15px; background: #f9fbf9; border: 1px solid #d3e4d3; border-radius: 8px; display: none; }
+        .sol-header { background: #f0f5f0; padding: 6px 12px; font-weight: bold; font-size: 12px; color: #2d5a2d; border-bottom: 1px solid #d3e4d3; }
+        .s-content { padding: 15px; }
+        
+        /* Global Solution Toggle */
+        .show-all-solutions .sol-box { display: block !important; }
+        .show-all-solutions .toggle-sol-btn { display: none; }
+
+        /* Builder Screen */
         #print-builder-screen { display:none; max-width: 800px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; }
-        body.show-sol .sol-box { display: block !important; }
-        .filter-group select { margin-top: 5px; padding: 5px; width: 150px; }
+        .builder-item { display: flex; padding: 10px; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
+
     <div id="login-overlay">
-        <div style="background:white; padding:40px; border-radius:12px; text-align:center;">
-            <h2>CIA4U Portal Login</h2>
-            <input type="text" id="userInput" placeholder="Username" style="width:100%; padding:10px; margin-bottom:10px; box-sizing: border-box;">
-            <input type="password" id="passInput" placeholder="Password" style="width:100%; padding:10px; margin-bottom:10px; box-sizing: border-box;">
-            <button onclick="attemptLogin()" class="primary-btn" style="width:100%">Login</button>
-            <p id="loginMsg" style="color:red"></p>
+        <div class="login-card">
+            <h2>Student Portal</h2>
+            <input type="text" id="userInput" placeholder="Username">
+            <input type="password" id="passInput" placeholder="Password">
+            <button onclick="attemptLogin()" class="login-btn">Login</button>
+            <div id="loginMsg" style="color:var(--danger); margin-top:10px;"></div>
         </div>
     </div>
-    
+
     <div id="app-wrapper">
-        <header style="display:flex; justify-content:space-between; align-items:center;">
-            <h1>CIA4U Economics</h1>
-            <button class="primary-btn" style="background:#ff4d4f;" onclick="location.reload()">Logout</button>
+        <header>
+            <h3 style="margin:0;">CIA4U Economics</h3>
+            <button onclick="location.reload()" style="background:transparent; border:1px solid white; color:white; cursor:pointer; border-radius:4px; padding:4px 10px;">Logout</button>
         </header>
-        <div class="filter-panel" id="filterPanel"></div>
-        <div style="display:flex; gap:10px; margin-bottom:20px;">
-            <button onclick="loadQuestions()" class="primary-btn">Apply Filters</button>
-            <button onclick="refreshData()" class="primary-btn" style="background: #13c2c2;">Refresh Data</button>
-            <button onclick="openPrintBuilder()" class="primary-btn" style="background:var(--success)">Create Paper</button>
-            <label style="background:#fff; padding:10px; border:1px solid #ddd; border-radius:6px; cursor:pointer; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" onchange="document.body.classList.toggle('show-sol')"> Show All Solutions
-            </label>
+
+        <div class="action-bar">
+            <div class="filter-row" id="filterPanel"></div>
+            
+            <div class="button-row">
+                <button onclick="loadQuestions()" class="btn btn-primary">Apply Filters</button>
+                <button onclick="refreshData()" class="btn btn-refresh">Refresh Data</button>
+                <button onclick="openPrintBuilder()" class="btn btn-success">Create Paper</button>
+                
+                <label style="margin-left:auto; display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:600;">
+                    <input type="checkbox" onchange="toggleAllSolutions(this)"> Show All Solutions
+                </label>
+            </div>
         </div>
+
         <div id="questionList"></div>
     </div>
 
     <div id="print-builder-screen">
         <h2>Paper Builder</h2>
-        <p>Rearrange questions and set <b>Empty Gap (cm)</b> for writing space.</p>
         <div id="builderList"></div>
         <div style="margin-top:20px; display:flex; gap:10px;">
-            <button onclick="generateFinalPaper()" class="primary-btn" style="flex:2">Export PDF</button>
-            <button onclick="location.reload()" class="primary-btn" style="background:#666; flex:1">Cancel</button>
+            <button onclick="window.print()" class="btn btn-primary">Print Now</button>
+            <button onclick="closeBuilder()" class="btn" style="background:#666">Back</button>
         </div>
     </div>
+
 </body>
 </html>
