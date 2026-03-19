@@ -71,7 +71,9 @@
         /* Practice Modal Styles */
         .practice-q-card { border-bottom: 1px solid #eee; padding: 20px 0; }
         .practice-q-card:last-child { border-bottom: none; }
-        .practice-sol { margin-top: 10px; padding: 10px; background: #fffbe6; border-radius: 4px; font-size: 0.9rem; }
+        .practice-sol-container { margin-top: 10px; }
+        .practice-sol-box { display: none; padding: 15px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; font-size: 0.95rem; margin-top: 10px; }
+        .show-sol-btn { background: #52c41a; color: white; padding: 6px 12px; font-size: 12px; margin-top: 10px; }
 
         @media print {
             body { background: white; padding: 0; }
@@ -192,7 +194,6 @@
         knowledgeBase = knSnap.docs.map(d => ({ id: d.id, ...d.data() }))
                                     .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-        // Fetch Questions to enable linking
         const qSnap = await getDocs(collection(db, "MathQuestion"));
         allQuestions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
@@ -254,9 +255,14 @@
                 <div class="practice-q-card">
                     <strong>Question ${index + 1}</strong>
                     <div style="margin: 10px 0;">${q.latexQuestion}</div>
-                    ${q.diagramUrl ? `<img src="${q.diagramUrl}" style="max-width:100%; border-radius:8px;">` : ""}
-                    <div class="practice-sol">
-                        <strong>Solution:</strong> <div>${q.latexSolution}</div>
+                    ${q.diagramUrl ? `<img src="${q.diagramUrl}" style="max-width:100%; border-radius:8px; margin-bottom: 10px;">` : ""}
+                    
+                    <div class="practice-sol-container">
+                        <button class="show-sol-btn" onclick="togglePracticeSol(this)">Show Solution</button>
+                        <div class="practice-sol-box">
+                            <strong>Solution:</strong>
+                            <div style="margin-top:5px;">${q.latexSolution}</div>
+                        </div>
                     </div>
                 </div>
             `).join('');
@@ -264,6 +270,13 @@
         
         document.getElementById('practiceModal').style.display = 'flex';
         if (window.MathJax) MathJax.typesetPromise([practiceList]);
+    };
+
+    window.togglePracticeSol = (btn) => {
+        const solBox = btn.nextElementSibling;
+        const isHidden = window.getComputedStyle(solBox).display === 'none';
+        solBox.style.display = isHidden ? 'block' : 'none';
+        btn.innerText = isHidden ? 'Hide Solution' : 'Show Solution';
     };
 
     window.closePracticeModal = () => document.getElementById('practiceModal').style.display = 'none';
