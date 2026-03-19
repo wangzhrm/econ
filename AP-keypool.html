@@ -11,8 +11,7 @@
                 displayMath: [['$$', '$$']] 
             },
             chtml: {
-                displayAlign: 'left',
-                linebreaks: { automatic: true, width: 'container' }
+                displayAlign: 'left'
             }
         };
     </script>
@@ -22,8 +21,7 @@
         :root { --primary: #1890ff; --bg: #f4f7f9; --text: #1f2937; --danger: #ff4d4f; --accent: #722ed1; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 40px 20px; }
         
-        .container { max-width: 1200px; margin: auto; }
-        
+        .container { max-width: 1100px; margin: auto; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; gap: 10px; flex-wrap: wrap; }
         .btn-group { display: flex; gap: 10px; }
         
@@ -34,62 +32,49 @@
         .do-print-btn { background: #52c41a; color: white; display: none; }
         
         .chapter-section { background: white; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e5e7eb; overflow: hidden; }
-        
         .chapter-banner { 
-            background: #f8fafc; padding: 18px 25px; font-size: 1.2rem; font-weight: 800; 
+            background: #f8fafc; padding: 15px 25px; font-size: 1.1rem; font-weight: 800; 
             color: var(--primary); border-bottom: 1px solid #f1f5f9; display: flex; 
             align-items: center; gap: 12px; cursor: pointer; user-select: none;
         }
         
-        .fold-icon { margin-left: auto; transition: transform 0.3s; font-size: 0.9rem; opacity: 0.5; }
+        .fold-icon { margin-left: auto; transition: transform 0.3s; font-size: 0.8rem; opacity: 0.5; }
         .chapter-section.folded .fold-icon { transform: rotate(-90deg); }
         .chapter-section.folded .knowledge-container { display: none; }
 
-        .knowledge-container { padding: 5px 25px; }
-        
+        .knowledge-container { padding: 0 25px; }
         .knowledge-item { 
-            padding: 20px 0; border-bottom: 1px solid #f1f5f9; display: flex; 
+            padding: 12px 0; border-bottom: 1px solid #f1f5f9; display: flex; 
             align-items: flex-start; gap: 15px; width: 100%;
         }
         .knowledge-item:last-child { border-bottom: none; }
         
-        .content-wrapper { flex: 1; min-width: 0; }
-        .content-display { font-size: 1.1rem; line-height: 1.6; }
+        .content-display { font-size: 1rem; flex: 1; min-width: 0; line-height: 1.4; white-space: normal; }
+        mjx-container[display="true"] { margin: 0.5em 0 !important; }
+        
+        .k-image { max-width: 300px; border-radius: 8px; border: 1px solid #eee; margin-top: 8px; display: block; }
 
-        /* Solution and Graph Styles */
-        .sol-box { margin-top: 15px; background: #fffdf6; border: 1px solid #ffe58f; border-radius: 8px; padding: 15px; }
-        .sol-title { font-size: 0.85rem; font-weight: bold; color: #874d00; margin-bottom: 10px; text-transform: uppercase; }
-        .s-content { font-size: 1rem; line-height: 1.5; color: #333; }
-        .sol-img { max-width: 200px; margin-top: 10px; display: block; border-radius: 4px; border: 1px solid #eee; }
-
-        .item-actions { 
-            display: flex; 
-            gap: 5px; 
-            flex-shrink: 0; 
-            align-self: flex-start; 
-            padding-top: 5px;
-            position: relative;
-            z-index: 10;
-            background: white; 
-        } 
-        .action-btn { background: #fff; border: 1px solid #d1d5db; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+        .item-actions { display: flex; gap: 5px; flex-shrink: 0; align-self: flex-start; padding-top: 4px; } 
+        .action-btn { background: #f9fafb; border: 1px solid #d1d5db; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; }
         .action-btn:hover { background: #f3f4f6; }
         .delete-btn:hover { border-color: var(--danger); color: var(--danger); }
 
-        .print-checkbox { display: none; width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+        .print-checkbox { display: none; width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; align-self: flex-start; margin-top: 15px; }
         body.selection-mode .print-checkbox { display: inline-block; }
         body.selection-mode .item-actions, body.selection-mode .add-btn { display: none; }
         body.selection-mode .do-print-btn { display: inline-block; }
 
-        .preview-box { margin-top: 10px; padding: 15px; background: #f9f9f9; border: 1px dashed var(--accent); min-height: 60px; width: 100%; box-sizing: border-box; }
+        .preview-box { margin-top: 10px; padding: 15px; background: #f9f9f9; border: 1px dashed var(--accent); min-height: 60px; }
+        .input-field { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
 
         @media print {
             body { background: white; padding: 0; }
             .header, .item-actions, .add-btn, .print-mode-btn, .do-print-btn, .print-checkbox, .fold-icon { display: none !important; }
-            .chapter-section { box-shadow: none; border: none; margin-bottom: 40px; }
+            .chapter-section { box-shadow: none; border: none; margin-bottom: 30px; }
             .chapter-section.folded .knowledge-container { display: block !important; }
             .knowledge-item:not(.selected-for-print) { display: none !important; }
             .chapter-section:not(.has-selected-items) { display: none !important; }
+            .k-image { max-width: 100%; }
         }
     </style>
 </head>
@@ -97,9 +82,9 @@
 
 <div class="container">
     <div class="header">
-        <h1>AP Economics Knowledge Bank</h1>
+        <h1>AP Econ Knowledge Bank</h1>
         <div class="btn-group">
-            <button class="add-btn" onclick="openModal()">+ Add New</button>
+            <button class="add-btn" onclick="openAddModal()">+ Create New</button>
             <button class="print-mode-btn" id="toggleSelectBtn" onclick="toggleSelectionMode()">Select to Print</button>
             <button class="do-print-btn" onclick="executePrint()">Print to PDF</button>
         </div>
@@ -108,50 +93,54 @@
 </div>
 
 <div id="editModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000;">
-    <div style="background: white; width: 600px; max-width: 95%; border-radius: 16px; padding: 30px; box-sizing: border-box; max-height: 90vh; overflow-y: auto;">
-        <h3 id="modalTitle">Knowledge Editor</h3>
+    <div style="background: white; width: 650px; max-width: 95%; border-radius: 16px; padding: 30px; box-sizing: border-box; max-height: 90vh; overflow-y: auto;">
+        <h3 id="modalTitle">Economics Knowledge Editor</h3>
         <input type="hidden" id="editTargetId">
+        
         <div style="margin-bottom:15px;">
-            <label>Chapter</label>
-            <select id="chapSelect" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ddd;"></select>
+            <label>Chapter (Unit Selection)</label>
+            <select id="chapSelect" class="input-field"></select>
         </div>
+        
         <div style="margin-bottom:15px;">
-            <label>LaTeX (Concept)</label>
-            <textarea id="latexInput" oninput="updatePreview()" style="width: 100%; height: 80px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-family: monospace;"></textarea>
+            <label>Content (Text & $LaTeX$)</label>
+            <textarea id="latexInput" oninput="updatePreview()" style="height: 150px; font-family: inherit;" class="input-field"></textarea>
         </div>
+
         <div style="margin-bottom:15px;">
-            <label>Solution LaTeX (Optional)</label>
-            <textarea id="solLatexInput" style="width: 100%; height: 80px; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-family: monospace;"></textarea>
+            <label>Diagram Image URL (Optional)</label>
+            <input type="text" id="imgUrlInput" oninput="updatePreview()" class="input-field" placeholder="https://...">
         </div>
-        <div style="margin-bottom:15px;">
-            <label>Solution Diagram URL (Optional)</label>
-            <input type="text" id="solDiagUrlInput" style="width:100%; padding:10px; border-radius:6px; border:1px solid #ddd; box-sizing: border-box;">
-        </div>
+        
         <label>Preview:</label>
         <div id="latexPreview" class="preview-box"></div>
+        <img id="imgPreview" style="max-width:100%; margin-top:10px; display:none; border-radius:8px;">
+        
         <div style="display:flex; gap:10px; margin-top:20px;">
             <button onclick="closeModal()" style="flex:1; background:#eee;">Cancel</button>
-            <button onclick="saveData()" style="flex:2; background:var(--primary); color:white;">Save Knowledge</button>
+            <button onclick="saveData()" style="flex:2; background:var(--primary); color:white;">Save Changes</button>
         </div>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    // UPDATED FIREBASE CONFIG FOR AP ECONOMICS
     const firebaseConfig = {
         apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
         authDomain: "econap-f858f.firebaseapp.com",
         projectId: "econap-f858f",
+        storageBucket: "econap-f858f.firebasestorage.app",
+        messagingSenderId: "71599790063",
         appId: "1:71599790063:web:3a27262d254e667200c81a"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let chapters = [];
+    let allCategories = [];
+    let childChapters = [];
     let knowledgeBase = [];
 
     async function init() {
@@ -160,22 +149,44 @@
     }
 
     async function fetchData() {
+        // 1. Fetch Categories and build Organized Dropdown
         const catSnap = await getDocs(collection(db, "Category"));
-        const allCats = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        chapters = allCats.filter(c => c.parent).sort((a, b) => (a.order || 0) - (b.order || 0));
+        allCategories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        // Define roots (Units) and children (Chapters)
+        const roots = allCategories.filter(c => !c.parent).sort((a,b) => (a.order || 0) - (b.order || 0));
+        childChapters = allCategories.filter(c => c.parent).sort((a, b) => (a.order || 0) - (b.order || 0));
 
+        const selectEl = document.getElementById('chapSelect');
+        selectEl.innerHTML = '<option value="">-- Select Chapter --</option>';
+        
+        roots.forEach(root => {
+            const optGroup = document.createElement('optgroup');
+            optGroup.label = root.name;
+            
+            // Find children belonging to this root
+            const children = childChapters.filter(c => c.parent.id === root.id);
+            children.forEach(child => {
+                const opt = document.createElement('option');
+                opt.value = child.id;
+                opt.textContent = child.name;
+                optGroup.appendChild(opt);
+            });
+            selectEl.appendChild(optGroup);
+        });
+
+        // 2. Fetch Knowledge items
         const knSnap = await getDocs(collection(db, "Knowledge"));
         knowledgeBase = knSnap.docs.map(d => ({ id: d.id, ...d.data() }))
                                     .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-        document.getElementById('chapSelect').innerHTML = chapters.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
     }
 
     function renderUI() {
         const lib = document.getElementById('knowledgeLibrary');
         lib.innerHTML = "";
 
-        chapters.forEach(chap => {
+        // Use childChapters to group the library display
+        childChapters.forEach(chap => {
             const items = knowledgeBase.filter(k => k.categoryId === chap.id);
             if (items.length === 0) return;
 
@@ -187,19 +198,10 @@
                 <div class="knowledge-item" id="item-${item.id}">
                     <input type="checkbox" class="print-checkbox item-check" data-chap="${chap.id}" 
                            onchange="syncPrintClass('${item.id}')">
-                    
-                    <div class="content-wrapper">
-                        <div class="content-display">$${item.latex}$</div>
-                        
-                        ${item.latexSolution ? `
-                            <div class="sol-box">
-                                <div class="sol-title">Solution</div>
-                                <div class="s-content">${item.latexSolution}</div>
-                                ${item.solutionDiagramUrl ? `<img src="${item.solutionDiagramUrl}" class="sol-img" />` : ""}
-                            </div>
-                        ` : ""}
+                    <div class="content-display">
+                        <div>${item.latex}</div>
+                        ${item.imageUrl ? `<img src="${item.imageUrl}" class="k-image">` : ""}
                     </div>
-
                     <div class="item-actions">
                         <button class="action-btn" onclick="moveItem('${item.id}', -1)">↑</button>
                         <button class="action-btn" onclick="moveItem('${item.id}', 1)">↓</button>
@@ -224,6 +226,7 @@
         if (window.MathJax) MathJax.typesetPromise();
     }
 
+    // Window functions
     window.toggleFold = (chapId) => document.getElementById(`sec-${chapId}`).classList.toggle('folded');
 
     window.toggleSelectionMode = () => {
@@ -248,17 +251,17 @@
     };
 
     window.executePrint = () => {
-        if (document.querySelectorAll('.selected-for-print').length === 0) return alert("Select items first.");
+        if (document.querySelectorAll('.selected-for-print').length === 0) return alert("Please select items to print.");
         window.print();
     };
 
-    window.openModal = () => {
+    window.openAddModal = () => {
         document.getElementById('editTargetId').value = "";
-        document.getElementById('modalTitle').innerText = "Add New Knowledge";
+        document.getElementById('modalTitle').innerText = "Add New Economics Concept";
         document.getElementById('latexInput').value = "";
-        document.getElementById('solLatexInput').value = "";
-        document.getElementById('solDiagUrlInput').value = "";
-        document.getElementById('latexPreview').innerHTML = "";
+        document.getElementById('imgUrlInput').value = "";
+        document.getElementById('chapSelect').value = "";
+        updatePreview();
         document.getElementById('editModal').style.display = 'flex';
     };
 
@@ -267,8 +270,7 @@
         document.getElementById('editTargetId').value = id;
         document.getElementById('modalTitle').innerText = "Edit Knowledge";
         document.getElementById('latexInput').value = item.latex;
-        document.getElementById('solLatexInput').value = item.latexSolution || "";
-        document.getElementById('solDiagUrlInput').value = item.solutionDiagramUrl || "";
+        document.getElementById('imgUrlInput').value = item.imageUrl || "";
         document.getElementById('chapSelect').value = item.categoryId;
         updatePreview();
         document.getElementById('editModal').style.display = 'flex';
@@ -277,39 +279,39 @@
     window.closeModal = () => document.getElementById('editModal').style.display = 'none';
 
     window.updatePreview = () => {
-        const val = document.getElementById('latexInput').value;
-        const out = document.getElementById('latexPreview');
-        out.innerHTML = val ? '$' + val + '$' : "";
-        if (window.MathJax) MathJax.typesetPromise([out]);
+        const text = document.getElementById('latexInput').value;
+        const img = document.getElementById('imgUrlInput').value;
+        const outText = document.getElementById('latexPreview');
+        const outImg = document.getElementById('imgPreview');
+        outText.innerHTML = text;
+        if (img) { outImg.src = img; outImg.style.display = "block"; } 
+        else { outImg.style.display = "none"; }
+        if (window.MathJax) MathJax.typesetPromise([outText]);
     };
 
     window.saveData = async () => {
         const id = document.getElementById('editTargetId').value;
-        const latex = document.getElementById('latexInput').value;
-        const latexSolution = document.getElementById('solLatexInput').value;
-        const solutionDiagramUrl = document.getElementById('solDiagUrlInput').value;
-        const catId = document.getElementById('chapSelect').value;
+        const latex = document.getElementById('latexInput').value.trim();
+        const imageUrl = document.getElementById('imgUrlInput').value.trim();
+        const categoryId = document.getElementById('chapSelect').value;
 
-        const data = { 
-            latex, 
-            categoryId: catId,
-            latexSolution: latexSolution || null,
-            solutionDiagramUrl: solutionDiagramUrl || null 
-        };
+        if (!categoryId) return alert("Please select a Chapter.");
 
-        if (id) await updateDoc(doc(db, "Knowledge", id), data);
-        else await addDoc(collection(db, "Knowledge"), { 
-            ...data,
-            order: knowledgeBase.length * 10, 
-            createdAt: new Date() 
-        });
-        
+        if (id) {
+            await updateDoc(doc(db, "Knowledge", id), { latex, imageUrl, categoryId });
+        } else {
+            await addDoc(collection(db, "Knowledge"), { 
+                latex, imageUrl, categoryId, 
+                order: Date.now(), 
+                createdAt: new Date() 
+            });
+        }
         closeModal();
         await init();
     };
 
     window.deleteItem = async (id) => {
-        if (confirm("Delete this item?")) {
+        if (confirm("Permanently delete this item?")) {
             await deleteDoc(doc(db, "Knowledge", id));
             await init();
         }
@@ -319,16 +321,12 @@
         const idx = knowledgeBase.findIndex(k => k.id === id);
         const targetIdx = idx + direction;
         if (targetIdx < 0 || targetIdx >= knowledgeBase.length) return;
-        
         const current = knowledgeBase[idx];
         const swap = knowledgeBase[targetIdx];
-        
         const oldOrder = current.order || 0;
         const newOrder = swap.order || 0;
-        
         await updateDoc(doc(db, "Knowledge", current.id), { order: newOrder });
         await updateDoc(doc(db, "Knowledge", swap.id), { order: oldOrder });
-        
         await init();
     };
 
