@@ -58,6 +58,7 @@
         .action-btn { background: #f9fafb; border: 1px solid #d1d5db; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; }
         .action-btn:hover { background: #f3f4f6; }
         .delete-btn:hover { border-color: var(--danger); color: var(--danger); }
+        .q-btn { background: #e6f7ff; border-color: #91d5ff; color: #1890ff; font-weight: bold; }
 
         .print-checkbox { display: none; width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; align-self: flex-start; margin-top: 15px; }
         body.selection-mode .print-checkbox { display: inline-block; }
@@ -66,6 +67,11 @@
 
         .preview-box { margin-top: 10px; padding: 15px; background: #f9f9f9; border: 1px dashed var(--accent); min-height: 60px; }
         .input-field { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+
+        /* Practice Modal Styles */
+        .practice-q-card { border-bottom: 1px solid #eee; padding: 20px 0; }
+        .practice-q-card:last-child { border-bottom: none; }
+        .practice-sol { margin-top: 10px; padding: 10px; background: #fffbe6; border-radius: 4px; font-size: 0.9rem; }
 
         @media print {
             body { background: white; padding: 0; }
@@ -123,6 +129,16 @@
     </div>
 </div>
 
+<div id="practiceModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 2000;">
+    <div style="background: white; width: 800px; max-width: 95%; border-radius: 16px; padding: 30px; box-sizing: border-box; max-height: 85vh; overflow-y: auto;">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">
+            <h3 style="margin:0;">Related Practice Questions</h3>
+            <button onclick="closePracticeModal()" style="background: #f0f0f0; padding: 5px 15px;">Close</button>
+        </div>
+        <div id="practiceList"></div>
+    </div>
+</div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -142,6 +158,7 @@
     let allCategories = [];
     let childChapters = [];
     let knowledgeBase = [];
+    let allQuestions = [];
 
     async function init() {
         await fetchData();
@@ -149,11 +166,9 @@
     }
 
     async function fetchData() {
-        // 1. Fetch Categories and build Organized Dropdown
         const catSnap = await getDocs(collection(db, "Category"));
         allCategories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         
-        // Define roots (Units) and children (Chapters)
         const roots = allCategories.filter(c => !c.parent).sort((a,b) => (a.order || 0) - (b.order || 0));
         childChapters = allCategories.filter(c => c.parent).sort((a, b) => (a.order || 0) - (b.order || 0));
 
@@ -163,8 +178,6 @@
         roots.forEach(root => {
             const optGroup = document.createElement('optgroup');
             optGroup.label = root.name;
-            
-            // Find children belonging to this root
             const children = childChapters.filter(c => c.parent.id === root.id);
             children.forEach(child => {
                 const opt = document.createElement('option');
@@ -175,17 +188,19 @@
             selectEl.appendChild(optGroup);
         });
 
-        // 2. Fetch Knowledge items
         const knSnap = await getDocs(collection(db, "Knowledge"));
         knowledgeBase = knSnap.docs.map(d => ({ id: d.id, ...d.data() }))
                                     .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        // Fetch Questions to enable linking
+        const qSnap = await getDocs(collection(db, "MathQuestion"));
+        allQuestions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
     function renderUI() {
         const lib = document.getElementById('knowledgeLibrary');
         lib.innerHTML = "";
 
-        // Use childChapters to group the library display
         childChapters.forEach(chap => {
             const items = knowledgeBase.filter(k => k.categoryId === chap.id);
             if (items.length === 0) return;
@@ -203,6 +218,7 @@
                         ${item.imageUrl ? `<img src="${item.imageUrl}" class="k-image">` : ""}
                     </div>
                     <div class="item-actions">
+                        <button class="action-btn q-btn" onclick="openPracticeModal('${item.id}')">Q</button>
                         <button class="action-btn" onclick="moveItem('${item.id}', -1)">↑</button>
                         <button class="action-btn" onclick="moveItem('${item.id}', 1)">↓</button>
                         <button class="action-btn" onclick="openEditModal('${item.id}')">Edit</button>
@@ -225,6 +241,32 @@
 
         if (window.MathJax) MathJax.typesetPromise();
     }
+
+    // Practice Modal Functions
+    window.openPracticeModal = (kId) => {
+        const practiceList = document.getElementById('practiceList');
+        const relatedQs = allQuestions.filter(q => q.knowledgeIds && q.knowledgeIds.includes(kId));
+        
+        if (relatedQs.length === 0) {
+            practiceList.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>No questions linked to this concept yet.</p>";
+        } else {
+            practiceList.innerHTML = relatedQs.map((q, index) => `
+                <div class="practice-q-card">
+                    <strong>Question ${index + 1}</strong>
+                    <div style="margin: 10px 0;">${q.latexQuestion}</div>
+                    ${q.diagramUrl ? `<img src="${q.diagramUrl}" style="max-width:100%; border-radius:8px;">` : ""}
+                    <div class="practice-sol">
+                        <strong>Solution:</strong> <div>${q.latexSolution}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        document.getElementById('practiceModal').style.display = 'flex';
+        if (window.MathJax) MathJax.typesetPromise([practiceList]);
+    };
+
+    window.closePracticeModal = () => document.getElementById('practiceModal').style.display = 'none';
 
     // Window functions
     window.toggleFold = (chapId) => document.getElementById(`sec-${chapId}`).classList.toggle('folded');
