@@ -122,7 +122,10 @@
                 card.innerHTML = `
                     <div class="q-card-header">
                         <span><strong>Question ${++i}</strong></span>
-                        <button onclick="openAttachModal('${qData.id}')" class="small-btn">🔗 Link Concept (${qKnowIds.length})</button>
+                        <div style="display:flex; gap:8px;">
+                            <button onclick="this.closest('.q-card').classList.toggle('individual-show-sol')" class="small-btn" style="background: #fffbe6; border-color: #ffe58f;">👁️ View Solution</button>
+                            <button onclick="openAttachModal('${qData.id}')" class="small-btn">🔗 Link Concept (${qKnowIds.length})</button>
+                        </div>
                     </div>
                     <div class="q-content-wrapper">
                         <div class="q-text-part"><div class="q-body">${qData.latexQuestion}</div></div>
@@ -191,10 +194,9 @@
             renderKnowledgeSearch();
         };
 
-        // FIXED: Combined text search and chapter filtering logic
         window.renderKnowledgeSearch = () => {
             const search = document.getElementById('knowSearch').value.toLowerCase();
-            const selectedCat = document.getElementById('searchCatFilter').value; // Get chapter ID
+            const selectedCat = document.getElementById('searchCatFilter').value; 
             const targetQId = document.getElementById('targetQId').value;
             const list = document.getElementById('knowSearchList');
             const currentQ = allFetchedQuestions.find(q => q.id === targetQId);
@@ -202,7 +204,6 @@
 
             list.innerHTML = "";
             
-            // Filter knowledge based on BOTH the search box AND the dropdown
             const filteredResults = allKnowledge.filter(k => {
                 const matchesSearch = k.latex.toLowerCase().includes(search);
                 const matchesCategory = selectedCat === "" || k.categoryId === selectedCat;
@@ -272,7 +273,10 @@
         .mini-k-img { max-width: 100%; border-radius: 4px; margin-top: 10px; border: 1px solid #eee; display: block; }
         .linked-item { background-color: #e6f7ff; } 
 
-        /* Modal Specifics - One Column */
+        /* Solution Visibility Logic */
+        .sol-box { margin-top: 20px; background: #fffdf6; border: 1px solid #ffe58f; border-radius: 8px; display: none; padding: 15px; }
+        .show-sol .sol-box, .q-card.individual-show-sol .sol-box { display: block !important; }
+
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display:none; justify-content:center; align-items:flex-start; z-index:6000; overflow-y: auto; padding-top: 40px; }
         .modal-content-vertical { background: white; padding: 40px; border-radius: 12px; width: 700px; max-width: 90%; margin-bottom: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
         .form-section { margin-bottom: 25px; }
@@ -282,11 +286,8 @@
         .input-field:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1); }
         label { font-weight: 600; font-size: 14px; color: #555; }
 
-        .sol-box { margin-top: 20px; background: #fffdf6; border: 1px solid #ffe58f; border-radius: 8px; display: none; padding: 15px; }
-        .show-sol .sol-box { display: block !important; }
         .floating-actions { position: fixed; right: 30px; bottom: 30px; z-index: 5000; }
         #loading-state { height: 100vh; display: flex; align-items: center; justify-content: center; }
-        
         .q-image-part img { max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px; }
     </style>
 </head>
@@ -304,7 +305,7 @@
         <div style="display:flex; gap:12px; margin: 20px 0; align-items: center;">
             <button onclick="renderCurrentQuestions()" class="primary-btn">Apply Filters</button>
             <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
-                <input type="checkbox" onchange="document.body.classList.toggle('show-sol')"> Show Solutions
+                <input type="checkbox" onchange="document.body.classList.toggle('show-sol')"> Show All Solutions
             </label>
         </div>
 
@@ -327,7 +328,7 @@
 
             <div class="form-section">
                 <label>Diagram Image URL</label>
-                <input type="text" id="knowImgUrl" placeholder="https://example.com/graph.png" oninput="updateKnowPreview()" class="input-field">
+                <input type="text" id="knowImgUrl" placeholder="https://..." oninput="updateKnowPreview()" class="input-field">
             </div>
 
             <div class="form-section">
