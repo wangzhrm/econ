@@ -44,15 +44,33 @@
 
         .knowledge-container { padding: 0 25px; }
         .knowledge-item { 
-            padding: 12px 0; border-bottom: 1px solid #f1f5f9; display: flex; 
-            align-items: flex-start; gap: 15px; width: 100%;
+            padding: 10px 0; 
+            border-bottom: 1px solid #f1f5f9; 
+            display: flex; 
+            align-items: flex-start; 
+            gap: 15px; 
+            width: 100%;
         }
         .knowledge-item:last-child { border-bottom: none; }
         
-        .content-display { font-size: 1rem; flex: 1; min-width: 0; line-height: 1.4; white-space: normal; }
-        mjx-container[display="true"] { margin: 0.5em 0 !important; }
+        /* The key for internal paragraph breaks */
+        .content-display-inner { 
+            font-size: 1rem; 
+            flex: 1; 
+            min-width: 0; 
+            line-height: 1.6; 
+            white-space: pre-wrap; 
+            word-wrap: break-word;
+            display: block;
+        }
+
+        /* Removes MathJax vertical margins that look like extra empty rows */
+        mjx-container[display="true"] { 
+            margin: 0 !important; 
+            padding: 0 !important;
+        }
         
-        .k-image { max-width: 300px; border-radius: 8px; border: 1px solid #eee; margin-top: 8px; display: block; }
+        .k-image { max-width: 300px; border-radius: 8px; border: 1px solid #eee; margin-top: 12px; display: block; }
 
         .item-actions { display: flex; gap: 5px; flex-shrink: 0; align-self: flex-start; padding-top: 4px; } 
         .action-btn { background: #f9fafb; border: 1px solid #d1d5db; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; }
@@ -65,14 +83,13 @@
         body.selection-mode .item-actions, body.selection-mode .add-btn { display: none; }
         body.selection-mode .do-print-btn { display: inline-block; }
 
-        .preview-box { margin-top: 10px; padding: 15px; background: #f9f9f9; border: 1px dashed var(--accent); min-height: 60px; }
+        .preview-box { margin-top: 10px; padding: 15px; background: #f9f9f9; border: 1px dashed var(--accent); min-height: 60px; white-space: pre-wrap; }
         .input-field { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
 
-        /* Practice Modal Styles */
         .practice-q-card { border-bottom: 1px solid #eee; padding: 20px 0; }
         .practice-q-card:last-child { border-bottom: none; }
         .practice-sol-container { margin-top: 10px; }
-        .practice-sol-box { display: none; padding: 15px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; font-size: 0.95rem; margin-top: 10px; }
+        .practice-sol-box { display: none; padding: 15px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; font-size: 0.95rem; margin-top: 10px; white-space: pre-wrap; }
         .show-sol-btn { background: #52c41a; color: white; padding: 6px 12px; font-size: 12px; margin-top: 10px; }
 
         @media print {
@@ -214,8 +231,8 @@
                 <div class="knowledge-item" id="item-${item.id}">
                     <input type="checkbox" class="print-checkbox item-check" data-chap="${chap.id}" 
                            onchange="syncPrintClass('${item.id}')">
-                    <div class="content-display">
-                        <div>${item.latex}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <span class="content-display-inner">${item.latex.trim()}</span>
                         ${item.imageUrl ? `<img src="${item.imageUrl}" class="k-image">` : ""}
                     </div>
                     <div class="item-actions">
@@ -243,7 +260,7 @@
         if (window.MathJax) MathJax.typesetPromise();
     }
 
-    // Practice Modal Functions
+    // Modal/Action functions remain identical for stability
     window.openPracticeModal = (kId) => {
         const practiceList = document.getElementById('practiceList');
         const relatedQs = allQuestions.filter(q => q.knowledgeIds && q.knowledgeIds.includes(kId));
@@ -254,14 +271,14 @@
             practiceList.innerHTML = relatedQs.map((q, index) => `
                 <div class="practice-q-card">
                     <strong>Question ${index + 1}</strong>
-                    <div style="margin: 10px 0;">${q.latexQuestion}</div>
+                    <div style="margin: 10px 0; white-space: pre-wrap;">${q.latexQuestion.trim()}</div>
                     ${q.diagramUrl ? `<img src="${q.diagramUrl}" style="max-width:100%; border-radius:8px; margin-bottom: 10px;">` : ""}
                     
                     <div class="practice-sol-container">
                         <button class="show-sol-btn" onclick="togglePracticeSol(this)">Show Solution</button>
                         <div class="practice-sol-box">
                             <strong>Solution:</strong>
-                            <div style="margin-top:5px;">${q.latexSolution}</div>
+                            <div style="margin-top:5px; white-space: pre-wrap;">${q.latexSolution.trim()}</div>
                         </div>
                     </div>
                 </div>
@@ -280,8 +297,6 @@
     };
 
     window.closePracticeModal = () => document.getElementById('practiceModal').style.display = 'none';
-
-    // Window functions
     window.toggleFold = (chapId) => document.getElementById(`sec-${chapId}`).classList.toggle('folded');
 
     window.toggleSelectionMode = () => {
@@ -338,7 +353,7 @@
         const img = document.getElementById('imgUrlInput').value;
         const outText = document.getElementById('latexPreview');
         const outImg = document.getElementById('imgPreview');
-        outText.innerHTML = text;
+        outText.innerText = text.trim();
         if (img) { outImg.src = img; outImg.style.display = "block"; } 
         else { outImg.style.display = "none"; }
         if (window.MathJax) MathJax.typesetPromise([outText]);
