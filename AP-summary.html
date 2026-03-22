@@ -2,301 +2,411 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AP Economics Analytics Dashboard</title>
+    <title>AP Economics Knowledge Bank</title>
     
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        // UPDATED FIREBASE CONFIGURATION FOR AP ECONOMICS
-        const firebaseConfig = {
-            apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
-            authDomain: "econap-f858f.firebaseapp.com",
-            projectId: "econap-f858f",
-            appId: "1:71599790063:web:3a27262d254e667200c81a"
+    <script>
+        window.MathJax = { 
+            tex: { 
+                inlineMath: [['$', '$']], 
+                displayMath: [['$$', '$$']] 
+            },
+            chtml: {
+                displayAlign: 'left'
+            }
         };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        
-        window.db = db;
-        window.getDocs = getDocs;
-        window.collection = collection;
-
-        if (typeof window.startApp === "function") {
-            window.startApp();
-        }
     </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 
     <style>
-        :root { --primary: #1890ff; --bg: #f0f2f5; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); padding: 20px; color: #333; }
-        .container { max-width: 1100px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h1 { text-align: center; color: var(--primary); margin-bottom: 25px; }
-        .filter-panel { background: #fafafa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start; }
-        .filter-group { display: flex; flex-direction: column; gap: 8px; }
-        .filter-group label { font-weight: bold; font-size: 13px; color: #666; text-transform: uppercase; }
-        select { padding: 8px; border-radius: 4px; border: 1px solid #d9d9d9; min-width: 180px; }
+        :root { --primary: #1890ff; --bg: #f4f7f9; --text: #1f2937; --danger: #ff4d4f; --accent: #722ed1; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 40px 20px; }
         
-        .checkbox-group { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; }
+        .container { max-width: 1100px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 10px; flex-wrap: wrap; }
+        .btn-group { display: flex; gap: 10px; }
         
-        .checkbox-item { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 14px; }
-        .stat-row { display: flex; gap: 20px; margin-bottom: 25px; }
-        .stat-card { flex: 1; text-align: center; padding: 15px; border-radius: 8px; background: white; border: 1px solid #e6f7ff; }
-        .stat-card h2 { margin: 0; color: var(--primary); font-size: 28px; }
-        .stat-card p { margin: 5px 0 0; color: #888; font-size: 12px; font-weight: 600; }
-        .charts-row { display: flex; gap: 20px; margin-bottom: 35px; flex-wrap: wrap; }
-        .chart-container { flex: 1; min-width: 300px; background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #f0f0f0; position: relative; }
-        .chart-container h3 { text-align: center; font-size: 14px; color: #555; margin-bottom: 15px; }
-        canvas { max-height: 350px; }
+        button { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        .add-btn { background: var(--accent); color: white; }
+        .print-mode-btn { background: #fa8c16; color: white; }
+        .do-print-btn { background: #52c41a; color: white; display: none; }
         
-        /* Updated Table Styles to handle Solutions and Graphs */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
-        th { background: #fafafa; padding: 12px 15px; text-align: left; border-bottom: 2px solid #eee; color: #666; font-size: 13px; }
-        td { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: top; }
-        tr:hover { background: #fdfdfd; }
+        /* Year Filter Panel */
+        .year-filter-panel { 
+            background: white; 
+            padding: 20px 25px; 
+            border-radius: 12px; 
+            margin-bottom: 25px; 
+            border: 1px solid #e5e7eb; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .filter-title { font-weight: 800; margin-bottom: 12px; display: block; color: var(--text); }
+        .checkbox-wrapper { display: flex; flex-wrap: wrap; gap: 20px; }
+        .year-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
+        .year-checkbox { width: 16px; height: 16px; cursor: pointer; }
+
+        .chapter-section { background: white; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e5e7eb; overflow: hidden; }
+        .chapter-banner { 
+            background: #f8fafc; padding: 15px 25px; font-size: 1.1rem; font-weight: 800; 
+            color: var(--primary); border-bottom: 1px solid #f1f5f9; display: flex; 
+            align-items: center; gap: 12px; cursor: pointer; user-select: none;
+        }
         
-        .badge { background: #f5f5f5; color: #888; padding: 3px 10px; border-radius: 12px; font-weight: 600; font-size: 12px; border: 1px solid #ddd; }
-        .badge.active { background: #e6f7ff; color: var(--primary); border-color: #91d5ff; }
-        .loading-overlay { text-align: center; padding: 50px; color: #999; font-style: italic; }
+        .fold-icon { margin-left: auto; transition: transform 0.3s; font-size: 0.8rem; opacity: 0.5; }
+        .chapter-section.folded .fold-icon { transform: rotate(-90deg); }
+        .chapter-section.folded .knowledge-container { display: none; }
+
+        .knowledge-container { padding: 10px 25px; }
+        .knowledge-item { 
+            padding: 15px; 
+            border-bottom: 1px solid #f1f5f9; 
+            display: flex; 
+            align-items: flex-start; 
+            gap: 15px; 
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            box-sizing: border-box;
+            transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
         
-        /* New styles for solution graphs */
-        .sol-img { max-width: 100%; height: auto; margin-top: 10px; border-radius: 4px; border: 1px solid #eee; display: block; }
+        .content-display-inner { font-size: 1rem; flex: 1; min-width: 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; display: block; }
+        .k-image { max-width: 300px; border-radius: 8px; border: 1px solid #eee; margin-top: 12px; display: block; }
+
+        .item-actions { display: flex; gap: 5px; flex-shrink: 0; align-self: flex-start; padding-top: 4px; } 
+        .action-btn { background: #f9fafb; border: 1px solid #d1d5db; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; }
+        .action-btn:hover { background: #f3f4f6; }
+        .delete-btn:hover { border-color: var(--danger); color: var(--danger); }
+        .q-btn { background: #e6f7ff; border-color: #91d5ff; color: #1890ff; font-weight: bold; }
+
+        .print-checkbox { display: none; width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; align-self: flex-start; margin-top: 15px; }
+        body.selection-mode .print-checkbox { display: inline-block; }
+        body.selection-mode .item-actions, body.selection-mode .add-btn { display: none; }
+        body.selection-mode .do-print-btn { display: inline-block; }
+
+        .preview-box { margin-top: 10px; padding: 15px; background: #f9f9f9; border: 1px dashed var(--accent); min-height: 60px; white-space: pre-wrap; }
+        .input-field { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+
+        .practice-q-card { border-bottom: 1px solid #eee; padding: 20px 0; }
+        .practice-sol-box { display: none; padding: 15px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; font-size: 0.95rem; margin-top: 10px; white-space: pre-wrap; }
+        .show-sol-btn { background: #52c41a; color: white; padding: 6px 12px; font-size: 12px; margin-top: 10px; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .header, .year-filter-panel, .item-actions, .add-btn, .print-mode-btn, .do-print-btn, .print-checkbox, .fold-icon { display: none !important; }
+            .chapter-section { box-shadow: none; border: none; margin-bottom: 30px; }
+            .chapter-section.folded .knowledge-container { display: block !important; }
+            .knowledge-item:not(.selected-for-print) { display: none !important; }
+            .chapter-section:not(.has-selected-items) { display: none !important; }
+            .knowledge-item { background: none !important; border: none !important; padding: 0 !important; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>AP Economics Analytics Dashboard</h1>
-
-    <div class="filter-panel">
-        <div class="filter-group">
-            <label>Year / Session Filter</label>
-            <div class="checkbox-group" id="session-checkboxes">
-                </div>
-        </div>
-
-        <div class="filter-group">
-            <label>Question Type</label>
-            <div class="checkbox-group">
-                <label class="checkbox-item"><input type="checkbox" class="part-check" value="mcq" checked onchange="applyFilters()"> MCQ</label>
-                <label class="checkbox-item"><input type="checkbox" class="part-check" value="frq" checked onchange="applyFilters()"> FRQ</label>
-            </div>
+    <div class="header">
+        <h1>AP Econ Knowledge Bank</h1>
+        <div class="btn-group">
+            <button class="add-btn" onclick="openAddModal()">+ Create New</button>
+            <button class="print-mode-btn" id="toggleSelectBtn" onclick="toggleSelectionMode()">Select to Print</button>
+            <button class="do-print-btn" onclick="executePrint()">Print to PDF</button>
         </div>
     </div>
-    
-    <div class="stat-row">
-        <div class="stat-card"><h2 id="total-q">0</h2><p>Questions Count</p></div>
-        <div class="stat-card" style="border-color: #b7eb8f;"><h2 id="total-m" style="color: #52c41a;">0</h2><p>Total Marks</p></div>
+
+    <div class="year-filter-panel">
+        <span class="filter-title">Filter Frequency by Year:</span>
+        <div class="checkbox-wrapper" id="yearFilterList"></div>
     </div>
 
-    <div class="charts-row">
-        <div class="chart-container"><h3>Question Distribution (%)</h3><canvas id="countChart"></canvas></div>
-        <div class="chart-container"><h3>Marks Distribution (%)</h3><canvas id="marksChart"></canvas></div>
-    </div>
-
-    <div id="loading-text" class="loading-overlay">Syncing with Firebase...</div>
-
-    <table id="stats-table" style="display:none;">
-        <thead>
-            <tr>
-                <th style="width: 35%;">Chapter / Topic</th>
-                <th style="text-align: center; width: 15%;">Qs</th>
-                <th style="text-align: right; width: 15%;">Marks</th>
-                <th style="width: 35%;">Solution & Graph</th>
-            </tr>
-        </thead>
-        <tbody id="stats-body"></tbody>
-    </table>
+    <div id="knowledgeLibrary"></div>
 </div>
 
-<script>
-    let rawQuestions = [];
-    let catMap = {};
-    let chaptersBase = [];
-    let sessionList = [];
-    let countChartInstance = null;
-    let marksChartInstance = null;
+<div id="editModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000;">
+    <div style="background: white; width: 650px; max-width: 95%; border-radius: 16px; padding: 30px; box-sizing: border-box; max-height: 90vh; overflow-y: auto;">
+        <h3 id="modalTitle">Concept Editor</h3>
+        <input type="hidden" id="editTargetId">
+        <div style="margin-bottom:15px;"><label>Chapter</label><select id="chapSelect" class="input-field"></select></div>
+        <div style="margin-bottom:15px;"><label>Content</label><textarea id="latexInput" oninput="updatePreview()" style="height: 150px;" class="input-field"></textarea></div>
+        <div style="margin-bottom:15px;"><label>Diagram URL</label><input type="text" id="imgUrlInput" oninput="updatePreview()" class="input-field"></div>
+        <label>Preview:</label><div id="latexPreview" class="preview-box"></div><img id="imgPreview" style="max-width:100%; margin-top:10px; display:none; border-radius:8px;">
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button onclick="closeModal()" style="flex:1; background:#eee;">Cancel</button>
+            <button onclick="saveData()" style="flex:2; background:var(--primary); color:white;">Save Changes</button>
+        </div>
+    </div>
+</div>
 
-    const chartColors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#7BC225', '#B03060', '#5F9EA0', '#D2691E', '#6495ED', '#DC143C', '#008B8B', '#B8860B', '#9400D3'];
+<div id="practiceModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 2000;">
+    <div style="background: white; width: 800px; max-width: 95%; border-radius: 16px; padding: 30px; box-sizing: border-box; max-height: 85vh; overflow-y: auto;">
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">
+            <h3 style="margin:0;">Practice Questions (Filtered)</h3>
+            <button onclick="closePracticeModal()" style="background: #f0f0f0; padding: 5px 15px;">Close</button>
+        </div>
+        <div id="practiceList"></div>
+    </div>
+</div>
 
-    window.startApp = function() {
-        initData();
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
+        authDomain: "econap-f858f.firebaseapp.com",
+        projectId: "econap-f858f",
+        storageBucket: "econap-f858f.firebasestorage.app",
+        messagingSenderId: "71599790063",
+        appId: "1:71599790063:web:3a27262d254e667200c81a"
     };
 
-    async function initData() {
-        try {
-            // Using updated collection names for AP Econ
-            const [catSnap, qSnap] = await Promise.all([
-                getDocs(collection(window.db, "EconCategory")),
-                getDocs(collection(window.db, "EconQuestion"))
-            ]);
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-            let chaptersRootId = null;
-            let sessionRootId = null;
+    let allCategories = [];
+    let yearCategories = [];
+    let childChapters = [];
+    let knowledgeBase = [];
+    let allQuestions = [];
+    let selectedYearIds = new Set();
 
-            catSnap.forEach(doc => {
-                const data = doc.data();
-                const name = (data.name || "").toLowerCase().trim();
-                if (!data.parent) {
-                    if (name === 'chapters') chaptersRootId = doc.id;
-                    if (name === 'sessions') sessionRootId = doc.id;
-                }
-            });
-
-            catSnap.forEach(doc => {
-                const data = doc.data();
-                catMap[doc.id] = data.name;
-                const pId = data.parent?.id || data.parent;
-
-                if (pId && pId === chaptersRootId) {
-                    chaptersBase.push({ id: doc.id, name: data.name, order: data.order || 999 });
-                }
-
-                if (pId && pId === sessionRootId) {
-                    sessionList.push({ id: doc.id, name: data.name, order: data.order || 999 });
-                }
-            });
-            
-            const sessionContainer = document.getElementById('session-checkboxes');
-            sessionList.sort((a, b) => a.order - b.order);
-            
-            sessionList.forEach(session => {
-                const label = document.createElement('label');
-                label.className = 'checkbox-item';
-                label.innerHTML = `<input type="checkbox" class="session-check" value="${session.name.toLowerCase()}" checked onchange="applyFilters()"> ${session.name}`;
-                sessionContainer.appendChild(label);
-            });
-
-            chaptersBase.sort((a,b) => a.order - b.order);
-
-            qSnap.forEach(doc => {
-                rawQuestions.push({ id: doc.id, ...doc.data() });
-            });
-
-            document.getElementById('loading-text').style.display = 'none';
-            document.getElementById('stats-table').style.display = 'table';
-            applyFilters();
-
-        } catch (e) {
-            console.error(e);
-            document.getElementById('loading-text').innerText = "Load failed: " + e.message;
-        }
+    async function init() {
+        await fetchData();
+        generateYearCheckboxes();
+        renderUI();
     }
 
-    function applyFilters() {
-        const selectedSessions = Array.from(document.querySelectorAll('.session-check:checked')).map(cb => cb.value);
-        const selectedTypes = Array.from(document.querySelectorAll('.part-check:checked')).map(cb => cb.value);
+    async function fetchData() {
+        const [catSnap, knSnap, qSnap] = await Promise.all([
+            getDocs(collection(db, "Category")),
+            getDocs(collection(db, "Knowledge")),
+            getDocs(collection(db, "MathQuestion"))
+        ]);
+
+        allCategories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         
-        const chapterData = chaptersBase.map(ch => ({ ...ch, count: 0, marks: 0, solutions: [] }));
-        let totalFilteredQ = 0;
-        let totalFilteredMarks = 0;
+        // Identify "Year" category and its children
+        const yearRoot = allCategories.find(c => !c.parent && c.name.toLowerCase().includes("year"));
+        if (yearRoot) {
+            yearCategories = allCategories.filter(c => {
+                const pid = c.parent?.id || c.parent;
+                return pid === yearRoot.id;
+            }).sort((a, b) => b.name.localeCompare(a.name));
+        }
 
-        rawQuestions.forEach(q => {
-            const qCatIds = q.categories || [];
-            const qCatNames = qCatIds.map(id => (catMap[id] || "").toLowerCase());
-            
-            const matchesYear = qCatNames.some(cat => selectedSessions.includes(cat));
-            const matchesType = qCatNames.some(cat => selectedTypes.includes(cat));
-            
-            // Assume mark value is stored in the document, or set default based on type
-            let markValue = q.marks || 0;
-            if (matchesType && markValue === 0) {
-                if (qCatNames.includes('mcq')) markValue = 1;
-                else if (qCatNames.includes('frq')) markValue = 10;
-            }
+        // Identify non-year root chapters and their children
+        const roots = allCategories.filter(c => !c.parent && !c.name.toLowerCase().includes("year")).sort((a,b) => (a.order || 0) - (b.order || 0));
+        childChapters = allCategories.filter(c => {
+            const pid = c.parent?.id || c.parent;
+            return roots.some(r => r.id === pid);
+        }).sort((a, b) => (a.order || 0) - (b.order || 0));
 
-            if (matchesYear && matchesType && markValue > 0) {
-                let counted = false;
-                chapterData.forEach(ch => {
-                    if (qCatIds.includes(ch.id)) {
-                        ch.count++;
-                        ch.marks += markValue;
-                        // Store solution data for this chapter
-                        if(q.solutionText || q.diagramUrl) {
-                            ch.solutions.push({
-                                text: q.solutionText || "",
-                                img: q.diagramUrl || null
-                            });
-                        }
-                        counted = true;
-                    }
-                });
-                if (counted) {
-                    totalFilteredQ++;
-                    totalFilteredMarks += markValue;
-                }
-            }
+        // Populate Modal Dropdown
+        const selectEl = document.getElementById('chapSelect');
+        selectEl.innerHTML = '<option value="">-- Select Chapter --</option>';
+        roots.forEach(root => {
+            const optGroup = document.createElement('optgroup');
+            optGroup.label = root.name;
+            childChapters.filter(c => (c.parent?.id || c.parent) === root.id).forEach(child => {
+                const opt = document.createElement('option');
+                opt.value = child.id; opt.textContent = child.name;
+                optGroup.appendChild(opt);
+            });
+            selectEl.appendChild(optGroup);
         });
 
-        renderTable(chapterData, totalFilteredQ, totalFilteredMarks);
-        updateCharts(chapterData);
+        knowledgeBase = knSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order || 0) - (b.order || 0));
+        allQuestions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
-    function renderTable(data, totalQ, totalM) {
-        const tbody = document.getElementById('stats-body');
-        tbody.innerHTML = "";
-        const maxQ = Math.max(...data.map(ch => ch.count), 1);
-        const maxM = Math.max(...data.map(ch => ch.marks), 1);
+    function generateYearCheckboxes() {
+        const container = document.getElementById('yearFilterList');
+        container.innerHTML = "";
+        yearCategories.forEach(cat => {
+            selectedYearIds.add(cat.id);
+            const label = document.createElement('label');
+            label.className = "year-label";
+            label.innerHTML = `<input type="checkbox" class="year-checkbox" value="${cat.id}" checked> ${cat.name}`;
+            label.querySelector('input').addEventListener('change', (e) => {
+                if (e.target.checked) selectedYearIds.add(e.target.value);
+                else selectedYearIds.delete(e.target.value);
+                renderUI();
+            });
+            container.appendChild(label);
+        });
+    }
 
-        data.forEach(ch => {
-            const badgeClass = ch.marks > 0 ? "badge active" : "badge";
-            const qWidth = (ch.count / maxQ) * 100;
-            const mWidth = (ch.marks / maxM) * 100;
+    function renderUI() {
+        const lib = document.getElementById('knowledgeLibrary');
+        lib.innerHTML = "";
 
-            // Generate solution HTML for the chapter
-            let solHtml = "";
-            if (ch.solutions.length > 0) {
-                // Just showing the first solution example for brevity in the summary table
-                const sol = ch.solutions[0];
-                solHtml = `<div style="font-size: 12px; color: #555;">
-                    ${sol.text ? sol.text.substring(0, 50) + "..." : ""}
-                    ${sol.img ? `<img src="${sol.img}" class="sol-img" />` : ""}
+        const counts = {};
+        knowledgeBase.forEach(k => {
+            counts[k.id] = allQuestions.filter(q => 
+                q.knowledgeIds?.includes(k.id) && 
+                (q.categories || []).some(cid => selectedYearIds.has(cid))
+            ).length;
+        });
+
+        const maxCount = Math.max(...Object.values(counts), 1);
+
+        childChapters.forEach(chap => {
+            const items = knowledgeBase.filter(k => k.categoryId === chap.id);
+            if (items.length === 0) return;
+
+            const section = document.createElement('div');
+            section.className = "chapter-section";
+            section.id = `sec-${chap.id}`;
+            
+            let itemsHtml = items.map(item => {
+                const count = counts[item.id] || 0;
+                const percentage = (count / maxCount) * 100;
+                const barStyle = `background: linear-gradient(to right, #e6f7ff ${percentage}%, transparent ${percentage}%);`;
+
+                return `
+                <div class="knowledge-item" id="item-${item.id}" style="${barStyle}">
+                    <input type="checkbox" class="print-checkbox item-check" data-chap="${chap.id}" onchange="syncPrintClass('${item.id}')">
+                    <div style="flex: 1; min-width: 0;">
+                        <span class="content-display-inner">${item.latex.trim()}</span>
+                        ${item.imageUrl ? `<img src="${item.imageUrl}" class="k-image">` : ""}
+                        <div style="font-size: 0.75rem; color: #1890ff; font-weight: 700; margin-top: 6px;">
+                            ${count} Questions Linked
+                        </div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="action-btn q-btn" onclick="openPracticeModal('${item.id}')">Q</button>
+                        <button class="action-btn" onclick="moveItem('${item.id}', -1)">↑</button>
+                        <button class="action-btn" onclick="moveItem('${item.id}', 1)">↓</button>
+                        <button class="action-btn" onclick="openEditModal('${item.id}')">Edit</button>
+                        <button class="action-btn delete-btn" onclick="deleteItem('${item.id}')">Del</button>
+                    </div>
                 </div>`;
-            }
+            }).join('');
 
-            const row = `<tr>
-                <td><strong>${ch.name}</strong></td>
-                <td style="text-align: center; position: relative; background: linear-gradient(to right, #e6f7ff ${qWidth}%, transparent ${qWidth}%);">
-                    <span style="position: relative; z-index: 1;">${ch.count}</span>
-                </td>
-                <td style="text-align: right; position: relative; background: linear-gradient(to left, #f6ffed ${mWidth}%, transparent ${mWidth}%);">
-                    <span class="${badgeClass}" style="position: relative; z-index: 1;">${ch.marks} pts</span>
-                </td>
-                <td>${solHtml}</td>
-            </tr>`;
-            tbody.innerHTML += row;
+            section.innerHTML = `
+                <div class="chapter-banner" onclick="toggleFold('${chap.id}')">
+                    <input type="checkbox" class="print-checkbox chapter-check" onclick="event.stopPropagation()" onchange="toggleChapterItems('${chap.id}', this.checked)">
+                    ${chap.name} <span class="fold-icon">▼</span>
+                </div>
+                <div class="knowledge-container">${itemsHtml}</div>`;
+            lib.appendChild(section);
         });
-        document.getElementById('total-q').innerText = totalQ;
-        document.getElementById('total-m').innerText = totalM;
+
+        if (window.MathJax) MathJax.typesetPromise();
     }
 
-    function updateCharts(data) {
-        const activeData = data.filter(d => d.count > 0);
-        const labels = activeData.map(d => d.name);
-        const countValues = activeData.map(d => d.count);
-        const markValues = activeData.map(d => d.marks);
+    // Modal & Logic Handlers
+    window.openPracticeModal = (kId) => {
+        const practiceList = document.getElementById('practiceList');
+        const relatedQs = allQuestions.filter(q => 
+            q.knowledgeIds?.includes(kId) && 
+            (q.categories || []).some(cid => selectedYearIds.has(cid))
+        );
 
-        if (countChartInstance) countChartInstance.destroy();
-        if (marksChartInstance) marksChartInstance.destroy();
+        if (relatedQs.length === 0) {
+            practiceList.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>No questions match the current filters.</p>";
+        } else {
+            practiceList.innerHTML = relatedQs.map((q, i) => {
+                const yr = yearCategories.find(yc => q.categories?.includes(yc.id))?.name || "Unknown";
+                return `
+                <div class="practice-q-card">
+                    <strong>Question ${i + 1} (${yr})</strong>
+                    <div style="margin: 10px 0;">${q.latexQuestion}</div>
+                    ${q.diagramUrl ? `<img src="${q.diagramUrl}" style="max-width:100%; border-radius:8px;">` : ""}
+                    <button class="show-sol-btn" onclick="togglePracticeSol(this)">Show Solution</button>
+                    <div class="practice-sol-box"><strong>Solution:</strong><br>${q.latexSolution}</div>
+                </div>`;
+            }).join('');
+        }
+        document.getElementById('practiceModal').style.display = 'flex';
+        if (window.MathJax) MathJax.typesetPromise([practiceList]);
+    };
 
-        const ctx1 = document.getElementById('countChart').getContext('2d');
-        countChartInstance = new Chart(ctx1, {
-            type: 'pie',
-            data: { labels: labels, datasets: [{ data: countValues, backgroundColor: chartColors }] },
-            options: { responsive: true, maintainAspectRatio: false }
+    window.togglePracticeSol = (btn) => {
+        const box = btn.nextElementSibling;
+        const isHidden = box.style.display === 'none' || !box.style.display;
+        box.style.display = isHidden ? 'block' : 'none';
+        btn.innerText = isHidden ? 'Hide Solution' : 'Show Solution';
+    };
+
+    window.closePracticeModal = () => document.getElementById('practiceModal').style.display = 'none';
+    window.toggleFold = (id) => document.getElementById(`sec-${id}`).classList.toggle('folded');
+    window.toggleSelectionMode = () => {
+        document.body.classList.toggle('selection-mode');
+        document.getElementById('toggleSelectBtn').innerText = document.body.classList.contains('selection-mode') ? "Cancel" : "Select to Print";
+    };
+    window.toggleChapterItems = (chapId, isChecked) => {
+        document.querySelectorAll(`.item-check[data-chap="${chapId}"]`).forEach(cb => {
+            cb.checked = isChecked;
+            syncPrintClass(cb.closest('.knowledge-item').id.replace('item-', ''));
         });
+    };
+    window.syncPrintClass = (itemId) => {
+        const el = document.getElementById(`item-${itemId}`);
+        const checked = el.querySelector('.item-check').checked;
+        el.classList.toggle('selected-for-print', checked);
+        el.closest('.chapter-section').classList.toggle('has-selected-items', el.closest('.knowledge-container').querySelectorAll('.selected-for-print').length > 0);
+    };
+    window.executePrint = () => {
+        if (document.querySelectorAll('.selected-for-print').length === 0) return alert("Select items first.");
+        window.print();
+    };
+    window.openAddModal = () => {
+        document.getElementById('editTargetId').value = "";
+        document.getElementById('modalTitle').innerText = "Add Concept";
+        document.getElementById('latexInput').value = "";
+        document.getElementById('imgUrlInput').value = "";
+        updatePreview();
+        document.getElementById('editModal').style.display = 'flex';
+    };
+    window.openEditModal = (id) => {
+        const item = knowledgeBase.find(k => k.id === id);
+        document.getElementById('editTargetId').value = id;
+        document.getElementById('modalTitle').innerText = "Edit Concept";
+        document.getElementById('latexInput').value = item.latex;
+        document.getElementById('imgUrlInput').value = item.imageUrl || "";
+        document.getElementById('chapSelect').value = item.categoryId;
+        updatePreview();
+        document.getElementById('editModal').style.display = 'flex';
+    };
+    window.closeModal = () => document.getElementById('editModal').style.display = 'none';
+    window.updatePreview = () => {
+        const text = document.getElementById('latexInput').value;
+        const img = document.getElementById('imgUrlInput').value;
+        const outText = document.getElementById('latexPreview');
+        const outImg = document.getElementById('imgPreview');
+        outText.innerText = text.trim();
+        outImg.src = img; outImg.style.display = img ? "block" : "none";
+        if (window.MathJax) MathJax.typesetPromise([outText]);
+    };
+    window.saveData = async () => {
+        const id = document.getElementById('editTargetId').value;
+        const data = {
+            latex: document.getElementById('latexInput').value.trim(),
+            imageUrl: document.getElementById('imgUrlInput').value.trim(),
+            categoryId: document.getElementById('chapSelect').value
+        };
+        if (!data.categoryId) return alert("Select Chapter");
+        id ? await updateDoc(doc(db, "Knowledge", id), data) : await addDoc(collection(db, "Knowledge"), { ...data, order: Date.now(), createdAt: new Date() });
+        closeModal(); await init();
+    };
+    window.deleteItem = async (id) => {
+        if (confirm("Delete this concept?")) { await deleteDoc(doc(db, "Knowledge", id)); await init(); }
+    };
+    window.moveItem = async (id, direction) => {
+        const idx = knowledgeBase.findIndex(k => k.id === id);
+        const targetIdx = idx + direction;
+        if (targetIdx < 0 || targetIdx >= knowledgeBase.length) return;
+        const current = knowledgeBase[idx], swap = knowledgeBase[targetIdx];
+        const oldOrder = current.order || 0, newOrder = swap.order || 0;
+        await Promise.all([
+            updateDoc(doc(db, "Knowledge", current.id), { order: newOrder }),
+            updateDoc(doc(db, "Knowledge", swap.id), { order: oldOrder })
+        ]);
+        await init();
+    };
 
-        const ctx2 = document.getElementById('marksChart').getContext('2d');
-        marksChartInstance = new Chart(ctx2, {
-            type: 'pie',
-            data: { labels: labels, datasets: [{ data: markValues, backgroundColor: chartColors }] },
-            options: { responsive: true, maintainAspectRatio: false }
-        });
-    }
+    init();
 </script>
 </body>
 </html>
