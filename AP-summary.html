@@ -68,6 +68,9 @@
             margin-bottom: 8px;
             box-sizing: border-box;
             transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Force background printing for the bars */
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
         }
         
         .content-display-inner { font-size: 1rem; flex: 1; min-width: 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; display: block; }
@@ -91,6 +94,8 @@
         .practice-sol-box { display: none; padding: 15px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; font-size: 0.95rem; margin-top: 10px; white-space: pre-wrap; }
         .show-sol-btn { background: #52c41a; color: white; padding: 6px 12px; font-size: 12px; margin-top: 10px; }
 
+        .question-count-badge { font-size: 0.75rem; color: #1890ff; font-weight: 700; margin-top: 6px; }
+
         @media print {
             body { background: white; padding: 0; }
             .header, .year-filter-panel, .item-actions, .add-btn, .print-mode-btn, .do-print-btn, .print-checkbox, .fold-icon { display: none !important; }
@@ -98,7 +103,9 @@
             .chapter-section.folded .knowledge-container { display: block !important; }
             .knowledge-item:not(.selected-for-print) { display: none !important; }
             .chapter-section:not(.has-selected-items) { display: none !important; }
-            .knowledge-item { background: none !important; border: none !important; padding: 0 !important; }
+            .knowledge-item { border: none !important; }
+            /* Hide the blue "Questions Linked" text in PDF */
+            .question-count-badge { display: none !important; }
         }
     </style>
 </head>
@@ -185,7 +192,6 @@
 
         allCategories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         
-        // Identify "Year" category and its children
         const yearRoot = allCategories.find(c => !c.parent && c.name.toLowerCase().includes("year"));
         if (yearRoot) {
             yearCategories = allCategories.filter(c => {
@@ -194,14 +200,12 @@
             }).sort((a, b) => b.name.localeCompare(a.name));
         }
 
-        // Identify non-year root chapters and their children
         const roots = allCategories.filter(c => !c.parent && !c.name.toLowerCase().includes("year")).sort((a,b) => (a.order || 0) - (b.order || 0));
         childChapters = allCategories.filter(c => {
             const pid = c.parent?.id || c.parent;
             return roots.some(r => r.id === pid);
         }).sort((a, b) => (a.order || 0) - (b.order || 0));
 
-        // Populate Modal Dropdown
         const selectEl = document.getElementById('chapSelect');
         selectEl.innerHTML = '<option value="">-- Select Chapter --</option>';
         roots.forEach(root => {
@@ -269,7 +273,7 @@
                     <div style="flex: 1; min-width: 0;">
                         <span class="content-display-inner">${item.latex.trim()}</span>
                         ${item.imageUrl ? `<img src="${item.imageUrl}" class="k-image">` : ""}
-                        <div style="font-size: 0.75rem; color: #1890ff; font-weight: 700; margin-top: 6px;">
+                        <div class="question-count-badge">
                             ${count} Questions Linked
                         </div>
                     </div>
@@ -295,7 +299,6 @@
         if (window.MathJax) MathJax.typesetPromise();
     }
 
-    // Modal & Logic Handlers
     window.openPracticeModal = (kId) => {
         const practiceList = document.getElementById('practiceList');
         const relatedQs = allQuestions.filter(q => 
