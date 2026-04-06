@@ -250,6 +250,24 @@
             renderKnowledgeSearch();
         };
 
+        window.refreshData = async () => {
+            const refreshBtn = document.getElementById('refreshBtn');
+            const originalText = refreshBtn.innerHTML;
+            refreshBtn.innerHTML = "↻ Refreshing...";
+            refreshBtn.disabled = true;
+
+            try {
+                await loadKnowledge(); 
+                await window.loadQuestions();
+            } catch (err) {
+                console.error("Error refreshing data:", err);
+                alert("Failed to refresh data. Check console for details.");
+            } finally {
+                refreshBtn.innerHTML = originalText;
+                refreshBtn.disabled = false;
+            }
+        };
+
         window.addEventListener('DOMContentLoaded', init);
     </script>
     
@@ -265,7 +283,6 @@
         .q-card { border: 1px solid #e1e4e8; padding: 20px; margin-bottom: 20px; border-radius: 10px; background: white; }
         .q-card-header { display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid #f0f0f0; padding-bottom: 8px; }
         
-        /* FIXED: These classes now respect paragraph breaks from your database */
         .q-body, .s-content, .k-search-body, .know-tag-content, #knowPreviewText { 
             white-space: pre-wrap; 
             line-height: 1.6; 
@@ -311,7 +328,8 @@
         
         <div style="display:flex; gap:12px; margin: 20px 0; align-items: center;">
             <button onclick="renderCurrentQuestions()" class="primary-btn">Apply Filters</button>
-            <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+            <button id="refreshBtn" onclick="refreshData()" class="primary-btn" style="background: #52c41a; border: 1px solid #389e0d;">↻ Refresh Data</button>
+            <label style="cursor:pointer; display:flex; align-items:center; gap:8px; margin-left: 10px;">
                 <input type="checkbox" onchange="document.body.classList.toggle('show-sol')"> Show All Solutions
             </label>
         </div>
