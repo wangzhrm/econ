@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Data Guard - AP Econ</title>
+    <style>
+        :root { --primary: #1890ff; --success: #52c41a; --warning: #fa8c16; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; padding: 40px; color: #1f2937; line-height: 1.6; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        h1 { color: var(--primary); margin-bottom: 10px; font-size: 1.8rem; }
+        .desc { color: #666; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+        
+        .action-card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 25px; margin-bottom: 20px; transition: transform 0.2s; }
+        .action-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+        h3 { margin-top: 0; display: flex; align-items: center; gap: 10px; }
+        
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; font-size: 14px; }
+        .btn:hover { opacity: 0.85; }
+        .btn-export { background: var(--primary); color: white; }
+        .btn-import { background: var(--success); color: white; }
+        
+        #log-window { background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 13px; height: 250px; overflow-y: auto; margin-top: 20px; display: none; }
+        .log-success { color: #b5cea8; }
+        .log-error { color: #f44747; }
+        .log-info { color: #9cdcfe; }
+        
+        input[type="file"] { margin-bottom: 15px; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Master Data Guard</h1>
+    <p class="desc">AP Economics 数据库备份与灾难恢复中心（项目：econap-f858f）</p>
+
+    <div class="action-card">
+        <h3>📤 本地备份 (Export to Local)</h3>
+        <p>读取所有章节、知识点和题目，并按 [日期_时间_数据库_表名] 导出独立文件。</p>
+        <button class="btn btn-export" onclick="exportData()">生成全量备份文件</button>
+    </div>
+
+    <div class="action-card">
+        <h3>📥 数据恢复 (Restore from Local)</h3>
+        <p>从本地 JSON 恢复数据。如果 ID 已存在，则会更新现有内容。</p>
+        <input type="file" id="fileInput" accept=".json">
+        <button class="btn btn-import" onclick="importData()">执行同步与恢复</button>
+    </div>
+
+    <div id="log-window"></div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
+        authDomain: "econap-f858f.firebaseapp.com",
+        projectId: "econap-f858f",
+        storageBucket: "econap-f858f.firebasestorage.app",
+        messagingSenderId: "71599790063",
+        appId: "1:71599790063:web:3a27262d254e667200c81a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const logEl = document.getElementById('log-window');
+    const dbName = "econap";
+
+    function addLog(msg, type = 'info') {
+        logEl.style.display = 'block';
+        const div = document.createElement('div');
+        div.className = `log-${type}`;
+        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logEl.appendChild(div);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // 生成符合要求的文件名格式
+    function getFileName(tableName) {
+        const now = new Date();
+        const dateStr = now.getFullYear() + 
+                       String(now.getMonth() + 1).padStart(2, '0') + 
+                       String(now.getDate()).padStart(2, '0');
+        const timeStr = String(now.getHours()).padStart(2, '0') + 
+                       String(now.getMinutes()).padStart(2, '0');
+        return `${dateStr}_${timeStr}_${dbName}_${tableName}.json`;
+    }
+
+    // --- 导出逻辑 ---
+    window.exportData = async () => {
+        logEl.innerHTML = "";
+        const collections = ["Category", "Knowledge", "MathQuestion"];
+        addLog("开始全量备份...");
+
+        try {
+            for (const colName of collections) {
+                addLog(`读取表: ${colName}...`);
+                const snap = await getDocs(collection(db, colName));
+                const data = snap.docs.map(d => {
+                    const docData = d.data();
+                    // 处理 Firebase 特有的 Reference 类型和 Timestamp
+                    if (docData.parent && docData.parent.path) docData.parent = docData.parent.path;
+                    if (docData.createdAt && docData.createdAt.toDate) docData.createdAt = docData.createdAt.toDate().toISOString();
+                    return { id: d.id, ...docData };
+                });
+
+                // 下载文件
+                const blob = new Blob([JSON.stringify({ tableName: colName, items: data }, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = getFileName(colName);
+                a.click();
+                addLog(`✅ 表 ${colName} 已下载 (${data.length} 条)`, 'success');
+            }
+            addLog("所有备份任务已完成。", "success");
+        } catch (err) {
+            addLog(`导出失败: ${err.message}`, 'error');
+        }
+    };
+
+    // --- 恢复逻辑 ---
+    window.importData = async () => {
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files[0]) return alert("请先选择备份文件");
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const raw = JSON.parse(e.target.result);
+                const { tableName, items } = raw;
+
+                if (!tableName || !Array.isArray(items)) {
+                    throw new Error("无效的备份文件格式");
+                }
+
+                if (!confirm(`准备向表 [${tableName}] 写入 ${items.length} 条数据，确定吗？`)) return;
+
+                logEl.innerHTML = "";
+                addLog(`正在恢复到表: ${tableName}...`);
+
+                for (const item of items) {
+                    const { id, ...content } = item;
+                    
+                    // 还原 Category 的 Parent 引用路径
+                    if (tableName === "Category" && content.parent && typeof content.parent === 'string') {
+                        content.parent = doc(db, content.parent);
+                    }
+                    // 还原日期
+                    if (content.createdAt) content.createdAt = new Date(content.createdAt);
+
+                    await setDoc(doc(db, tableName, id), content);
+                }
+
+                addLog(`✨ 表 ${tableName} 恢复成功！`, 'success');
+            } catch (err) {
+                addLog(`恢复失败: ${err.message}`, 'error');
+            }
+        };
+        reader.readAsText(fileInput.files[0]);
+    };
+</script>
+
+</body>
+</html>
