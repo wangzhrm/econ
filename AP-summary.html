@@ -31,18 +31,20 @@
         .print-mode-btn { background: #fa8c16; color: white; }
         .do-print-btn { background: #52c41a; color: white; display: none; }
         
-        /* Year Filter Panel */
-        .year-filter-panel { 
+        /* Filter Panels */
+        .filter-panel { 
             background: white; 
             padding: 20px 25px; 
             border-radius: 12px; 
-            margin-bottom: 25px; 
+            margin-bottom: 15px; 
             border: 1px solid #e5e7eb; 
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
-        .filter-title { font-weight: 800; margin-bottom: 12px; display: block; color: var(--text); }
-        .checkbox-wrapper { display: flex; flex-wrap: wrap; gap: 20px; }
-        .year-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 500; }
+        .filter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .filter-title { font-weight: 800; color: var(--text); }
+        .checkbox-wrapper { display: flex; flex-wrap: wrap; gap: 15px; }
+        .year-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 500; background: #f9fafb; padding: 5px 10px; border-radius: 6px; border: 1px solid #edf2f7; }
+        .year-label:hover { background: #f3f4f6; }
         .year-checkbox { width: 16px; height: 16px; cursor: pointer; }
 
         .chapter-section { background: white; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e5e7eb; overflow: hidden; }
@@ -68,7 +70,6 @@
             margin-bottom: 8px;
             box-sizing: border-box;
             transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            /* Force background printing for the bars */
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
         }
@@ -98,13 +99,12 @@
 
         @media print {
             body { background: white; padding: 0; }
-            .header, .year-filter-panel, .item-actions, .add-btn, .print-mode-btn, .do-print-btn, .print-checkbox, .fold-icon { display: none !important; }
+            .header, .filter-panel, .item-actions, .add-btn, .print-mode-btn, .do-print-btn, .print-checkbox, .fold-icon { display: none !important; }
             .chapter-section { box-shadow: none; border: none; margin-bottom: 30px; }
             .chapter-section.folded .knowledge-container { display: block !important; }
             .knowledge-item:not(.selected-for-print) { display: none !important; }
             .chapter-section:not(.has-selected-items) { display: none !important; }
             .knowledge-item { border: none !important; }
-            /* Hide the blue "Questions Linked" text in PDF */
             .question-count-badge { display: none !important; }
         }
     </style>
@@ -121,9 +121,22 @@
         </div>
     </div>
 
-    <div class="year-filter-panel">
-        <span class="filter-title">Filter Frequency by Year:</span>
+    <div class="filter-panel">
+        <div class="filter-header">
+            <span class="filter-title">Filter Frequency by Year:</span>
+        </div>
         <div class="checkbox-wrapper" id="yearFilterList"></div>
+    </div>
+
+    <div class="filter-panel">
+        <div class="filter-header">
+            <span class="filter-title">Show/Hide Active Chapters:</span>
+            <div style="display:flex; gap:10px;">
+                <a href="#" onclick="toggleAllChapters(true); return false;" style="font-size: 12px; color: var(--primary); text-decoration: none; font-weight: 600;">Select All</a>
+                <a href="#" onclick="toggleAllChapters(false); return false;" style="font-size: 12px; color: var(--danger); text-decoration: none; font-weight: 600;">Clear All</a>
+            </div>
+        </div>
+        <div class="checkbox-wrapper" id="chapterFilterList"></div>
     </div>
 
     <div id="knowledgeLibrary"></div>
@@ -176,10 +189,12 @@
     let knowledgeBase = [];
     let allQuestions = [];
     let selectedYearIds = new Set();
+    let selectedChapterIds = new Set();
 
     async function init() {
         await fetchData();
         generateYearCheckboxes();
+        generateChapterCheckboxes();
         renderUI();
     }
 
@@ -191,7 +206,9 @@
         ]);
 
         allCategories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-        
+        knowledgeBase = knSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order || 0) - (b.order || 0));
+        allQuestions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
         const yearRoot = allCategories.find(c => !c.parent && c.name.toLowerCase().includes("year"));
         if (yearRoot) {
             yearCategories = allCategories.filter(c => {
@@ -201,10 +218,17 @@
         }
 
         const roots = allCategories.filter(c => !c.parent && !c.name.toLowerCase().includes("year")).sort((a,b) => (a.order || 0) - (b.order || 0));
+        
+        // Filter child chapters: Must have a parent in 'roots' AND must actually contain knowledge items
         childChapters = allCategories.filter(c => {
             const pid = c.parent?.id || c.parent;
-            return roots.some(r => r.id === pid);
+            const isChild = roots.some(r => r.id === pid);
+            const hasKnowledge = knowledgeBase.some(k => k.categoryId === c.id);
+            return isChild && hasKnowledge;
         }).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+        // Sync selected chapters with visible chapters
+        childChapters.forEach(c => selectedChapterIds.add(c.id));
 
         const selectEl = document.getElementById('chapSelect');
         selectEl.innerHTML = '<option value="">-- Select Chapter --</option>';
@@ -216,11 +240,8 @@
                 opt.value = child.id; opt.textContent = child.name;
                 optGroup.appendChild(opt);
             });
-            selectEl.appendChild(optGroup);
+            if (optGroup.children.length > 0) selectEl.appendChild(optGroup);
         });
-
-        knowledgeBase = knSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order || 0) - (b.order || 0));
-        allQuestions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
 
     function generateYearCheckboxes() {
@@ -240,6 +261,32 @@
         });
     }
 
+    function generateChapterCheckboxes() {
+        const container = document.getElementById('chapterFilterList');
+        container.innerHTML = "";
+        childChapters.forEach(chap => {
+            const label = document.createElement('label');
+            label.className = "year-label";
+            label.innerHTML = `<input type="checkbox" class="year-checkbox chap-filter-cb" value="${chap.id}" checked> ${chap.name}`;
+            label.querySelector('input').addEventListener('change', (e) => {
+                if (e.target.checked) selectedChapterIds.add(e.target.value);
+                else selectedChapterIds.delete(e.target.value);
+                renderUI();
+            });
+            container.appendChild(label);
+        });
+    }
+
+    window.toggleAllChapters = (show) => {
+        const cbs = document.querySelectorAll('.chap-filter-cb');
+        selectedChapterIds.clear();
+        cbs.forEach(cb => {
+            cb.checked = show;
+            if (show) selectedChapterIds.add(cb.value);
+        });
+        renderUI();
+    };
+
     function renderUI() {
         const lib = document.getElementById('knowledgeLibrary');
         lib.innerHTML = "";
@@ -255,6 +302,9 @@
         const maxCount = Math.max(...Object.values(counts), 1);
 
         childChapters.forEach(chap => {
+            // Apply the double filter: Logic check (has items) AND user choice (selected in panel)
+            if (!selectedChapterIds.has(chap.id)) return;
+
             const items = knowledgeBase.filter(k => k.categoryId === chap.id);
             if (items.length === 0) return;
 
@@ -299,6 +349,7 @@
         if (window.MathJax) MathJax.typesetPromise();
     }
 
+    // Helper functions for UI
     window.openPracticeModal = (kId) => {
         const practiceList = document.getElementById('practiceList');
         const relatedQs = allQuestions.filter(q => 
@@ -348,7 +399,9 @@
         const el = document.getElementById(`item-${itemId}`);
         const checked = el.querySelector('.item-check').checked;
         el.classList.toggle('selected-for-print', checked);
-        el.closest('.chapter-section').classList.toggle('has-selected-items', el.closest('.knowledge-container').querySelectorAll('.selected-for-print').length > 0);
+        const section = el.closest('.chapter-section');
+        const hasSelected = section.querySelectorAll('.selected-for-print').length > 0;
+        section.classList.toggle('has-selected-items', hasSelected);
     };
     window.executePrint = () => {
         if (document.querySelectorAll('.selected-for-print').length === 0) return alert("Select items first.");
