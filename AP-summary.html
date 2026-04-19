@@ -31,14 +31,9 @@
         .print-mode-btn { background: #fa8c16; color: white; }
         .do-print-btn { background: #52c41a; color: white; display: none; }
         
-        /* Filter Panels */
         .filter-panel { 
-            background: white; 
-            padding: 20px 25px; 
-            border-radius: 12px; 
-            margin-bottom: 15px; 
-            border: 1px solid #e5e7eb; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            background: white; padding: 20px 25px; border-radius: 12px; margin-bottom: 15px; 
+            border: 1px solid #e5e7eb; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
         .filter-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
         .filter-title { font-weight: 800; color: var(--text); }
@@ -60,30 +55,19 @@
 
         .knowledge-container { padding: 10px 25px; }
         .knowledge-item { 
-            padding: 15px; 
-            border-bottom: 1px solid #f1f5f9; 
-            display: flex; 
-            align-items: flex-start; 
-            gap: 15px; 
-            width: 100%;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            box-sizing: border-box;
-            transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
+            padding: 15px; border-bottom: 1px solid #f1f5f9; display: flex; 
+            align-items: flex-start; gap: 15px; width: 100%; border-radius: 8px;
+            margin-bottom: 8px; box-sizing: border-box; transition: background 0.4s;
         }
         
-        .content-display-inner { font-size: 1rem; flex: 1; min-width: 0; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; display: block; }
+        .content-display-inner { font-size: 1rem; flex: 1; min-width: 0; line-height: 1.6; white-space: pre-wrap; display: block; }
         .k-image { max-width: 300px; border-radius: 8px; border: 1px solid #eee; margin-top: 12px; display: block; }
 
         .item-actions { display: flex; gap: 5px; flex-shrink: 0; align-self: flex-start; padding-top: 4px; } 
         .action-btn { background: #f9fafb; border: 1px solid #d1d5db; padding: 6px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; }
-        .action-btn:hover { background: #f3f4f6; }
-        .delete-btn:hover { border-color: var(--danger); color: var(--danger); }
         .q-btn { background: #e6f7ff; border-color: #91d5ff; color: #1890ff; font-weight: bold; }
 
-        .print-checkbox { display: none; width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; align-self: flex-start; margin-top: 15px; }
+        .print-checkbox { display: none; width: 18px; height: 18px; flex-shrink: 0; margin-top: 15px; }
         body.selection-mode .print-checkbox { display: inline-block; }
         body.selection-mode .item-actions, body.selection-mode .add-btn { display: none; }
         body.selection-mode .do-print-btn { display: inline-block; }
@@ -91,21 +75,16 @@
         .preview-box { margin-top: 10px; padding: 15px; background: #f9f9f9; border: 1px dashed var(--accent); min-height: 60px; white-space: pre-wrap; }
         .input-field { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
 
-        .practice-q-card { border-bottom: 1px solid #eee; padding: 20px 0; }
-        .practice-sol-box { display: none; padding: 15px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; font-size: 0.95rem; margin-top: 10px; white-space: pre-wrap; }
+        /* Practice Modal Styles */
+        .practice-q-card { border-bottom: 2px solid #f0f0f0; padding: 25px 0; }
+        .practice-sol-box { display: none; padding: 15px; background: #fffbe6; border: 1px solid #ffe58f; border-radius: 8px; font-size: 0.95rem; margin-top: 10px; line-height: 1.6; }
         .show-sol-btn { background: #52c41a; color: white; padding: 6px 12px; font-size: 12px; margin-top: 10px; }
-
         .question-count-badge { font-size: 0.75rem; color: #1890ff; font-weight: 700; margin-top: 6px; }
 
         @media print {
-            body { background: white; padding: 0; }
             .header, .filter-panel, .item-actions, .add-btn, .print-mode-btn, .do-print-btn, .print-checkbox, .fold-icon { display: none !important; }
-            .chapter-section { box-shadow: none; border: none; margin-bottom: 30px; }
-            .chapter-section.folded .knowledge-container { display: block !important; }
             .knowledge-item:not(.selected-for-print) { display: none !important; }
             .chapter-section:not(.has-selected-items) { display: none !important; }
-            .knowledge-item { border: none !important; }
-            .question-count-badge { display: none !important; }
         }
     </style>
 </head>
@@ -121,19 +100,13 @@
         </div>
     </div>
 
+    <div class="filter-panel"><div class="filter-header"><span class="filter-title">Filter by Year:</span></div><div class="checkbox-wrapper" id="yearFilterList"></div></div>
     <div class="filter-panel">
         <div class="filter-header">
-            <span class="filter-title">Filter Frequency by Year:</span>
-        </div>
-        <div class="checkbox-wrapper" id="yearFilterList"></div>
-    </div>
-
-    <div class="filter-panel">
-        <div class="filter-header">
-            <span class="filter-title">Show/Hide Active Chapters:</span>
+            <span class="filter-title">Filter Chapters:</span>
             <div style="display:flex; gap:10px;">
-                <a href="#" onclick="toggleAllChapters(true); return false;" style="font-size: 12px; color: var(--primary); text-decoration: none; font-weight: 600;">Select All</a>
-                <a href="#" onclick="toggleAllChapters(false); return false;" style="font-size: 12px; color: var(--danger); text-decoration: none; font-weight: 600;">Clear All</a>
+                <a href="#" onclick="toggleAllChapters(true); return false;" style="font-size:12px; color:var(--primary); text-decoration:none;">Select All</a>
+                <a href="#" onclick="toggleAllChapters(false); return false;" style="font-size:12px; color:var(--danger); text-decoration:none;">Clear All</a>
             </div>
         </div>
         <div class="checkbox-wrapper" id="chapterFilterList"></div>
@@ -160,7 +133,7 @@
 <div id="practiceModal" style="position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 2000;">
     <div style="background: white; width: 800px; max-width: 95%; border-radius: 16px; padding: 30px; box-sizing: border-box; max-height: 85vh; overflow-y: auto;">
         <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">
-            <h3 style="margin:0;">Practice Questions (Filtered)</h3>
+            <h3 style="margin:0;">Practice Questions</h3>
             <button onclick="closePracticeModal()" style="background: #f0f0f0; padding: 5px 15px;">Close</button>
         </div>
         <div id="practiceList"></div>
@@ -183,13 +156,8 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let allCategories = [];
-    let yearCategories = [];
-    let childChapters = [];
-    let knowledgeBase = [];
-    let allQuestions = [];
-    let selectedYearIds = new Set();
-    let selectedChapterIds = new Set();
+    let allCategories = [], yearCategories = [], childChapters = [], knowledgeBase = [], allQuestions = [];
+    let selectedYearIds = new Set(), selectedChapterIds = new Set();
 
     async function init() {
         await fetchData();
@@ -200,61 +168,43 @@
 
     async function fetchData() {
         const [catSnap, knSnap, qSnap] = await Promise.all([
-            getDocs(collection(db, "Category")),
-            getDocs(collection(db, "Knowledge")),
-            getDocs(collection(db, "MathQuestion"))
+            getDocs(collection(db, "Category")), getDocs(collection(db, "Knowledge")), getDocs(collection(db, "MathQuestion"))
         ]);
-
         allCategories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         knowledgeBase = knSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.order || 0) - (b.order || 0));
         allQuestions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
         const yearRoot = allCategories.find(c => !c.parent && c.name.toLowerCase().includes("year"));
         if (yearRoot) {
-            yearCategories = allCategories.filter(c => {
-                const pid = c.parent?.id || c.parent;
-                return pid === yearRoot.id;
-            }).sort((a, b) => b.name.localeCompare(a.name));
+            yearCategories = allCategories.filter(c => (c.parent?.id || c.parent) === yearRoot.id).sort((a, b) => b.name.localeCompare(a.name));
         }
 
         const roots = allCategories.filter(c => !c.parent && !c.name.toLowerCase().includes("year")).sort((a,b) => (a.order || 0) - (b.order || 0));
-        
-        // Filter child chapters: Must have a parent in 'roots' AND must actually contain knowledge items
         childChapters = allCategories.filter(c => {
             const pid = c.parent?.id || c.parent;
-            const isChild = roots.some(r => r.id === pid);
-            const hasKnowledge = knowledgeBase.some(k => k.categoryId === c.id);
-            return isChild && hasKnowledge;
+            return roots.some(r => r.id === pid) && knowledgeBase.some(k => k.categoryId === c.id);
         }).sort((a, b) => (a.order || 0) - (b.order || 0));
 
-        // Sync selected chapters with visible chapters
         childChapters.forEach(c => selectedChapterIds.add(c.id));
-
         const selectEl = document.getElementById('chapSelect');
         selectEl.innerHTML = '<option value="">-- Select Chapter --</option>';
         roots.forEach(root => {
-            const optGroup = document.createElement('optgroup');
-            optGroup.label = root.name;
+            const group = document.createElement('optgroup'); group.label = root.name;
             childChapters.filter(c => (c.parent?.id || c.parent) === root.id).forEach(child => {
-                const opt = document.createElement('option');
-                opt.value = child.id; opt.textContent = child.name;
-                optGroup.appendChild(opt);
+                const opt = document.createElement('option'); opt.value = child.id; opt.textContent = child.name; group.appendChild(opt);
             });
-            if (optGroup.children.length > 0) selectEl.appendChild(optGroup);
+            if (group.children.length > 0) selectEl.appendChild(group);
         });
     }
 
     function generateYearCheckboxes() {
-        const container = document.getElementById('yearFilterList');
-        container.innerHTML = "";
+        const container = document.getElementById('yearFilterList'); container.innerHTML = "";
         yearCategories.forEach(cat => {
             selectedYearIds.add(cat.id);
-            const label = document.createElement('label');
-            label.className = "year-label";
+            const label = document.createElement('label'); label.className = "year-label";
             label.innerHTML = `<input type="checkbox" class="year-checkbox" value="${cat.id}" checked> ${cat.name}`;
             label.querySelector('input').addEventListener('change', (e) => {
-                if (e.target.checked) selectedYearIds.add(e.target.value);
-                else selectedYearIds.delete(e.target.value);
+                e.target.checked ? selectedYearIds.add(e.target.value) : selectedYearIds.delete(e.target.value);
                 renderUI();
             });
             container.appendChild(label);
@@ -262,15 +212,12 @@
     }
 
     function generateChapterCheckboxes() {
-        const container = document.getElementById('chapterFilterList');
-        container.innerHTML = "";
+        const container = document.getElementById('chapterFilterList'); container.innerHTML = "";
         childChapters.forEach(chap => {
-            const label = document.createElement('label');
-            label.className = "year-label";
+            const label = document.createElement('label'); label.className = "year-label";
             label.innerHTML = `<input type="checkbox" class="year-checkbox chap-filter-cb" value="${chap.id}" checked> ${chap.name}`;
             label.querySelector('input').addEventListener('change', (e) => {
-                if (e.target.checked) selectedChapterIds.add(e.target.value);
-                else selectedChapterIds.delete(e.target.value);
+                e.target.checked ? selectedChapterIds.add(e.target.value) : selectedChapterIds.delete(e.target.value);
                 renderUI();
             });
             container.appendChild(label);
@@ -280,52 +227,34 @@
     window.toggleAllChapters = (show) => {
         const cbs = document.querySelectorAll('.chap-filter-cb');
         selectedChapterIds.clear();
-        cbs.forEach(cb => {
-            cb.checked = show;
-            if (show) selectedChapterIds.add(cb.value);
-        });
+        cbs.forEach(cb => { cb.checked = show; if (show) selectedChapterIds.add(cb.value); });
         renderUI();
     };
 
     function renderUI() {
-        const lib = document.getElementById('knowledgeLibrary');
-        lib.innerHTML = "";
-
+        const lib = document.getElementById('knowledgeLibrary'); lib.innerHTML = "";
         const counts = {};
         knowledgeBase.forEach(k => {
-            counts[k.id] = allQuestions.filter(q => 
-                q.knowledgeIds?.includes(k.id) && 
-                (q.categories || []).some(cid => selectedYearIds.has(cid))
-            ).length;
+            counts[k.id] = allQuestions.filter(q => q.knowledgeIds?.includes(k.id) && (q.categories || []).some(cid => selectedYearIds.has(cid))).length;
         });
-
         const maxCount = Math.max(...Object.values(counts), 1);
 
         childChapters.forEach(chap => {
-            // Apply the double filter: Logic check (has items) AND user choice (selected in panel)
             if (!selectedChapterIds.has(chap.id)) return;
-
             const items = knowledgeBase.filter(k => k.categoryId === chap.id);
             if (items.length === 0) return;
 
-            const section = document.createElement('div');
-            section.className = "chapter-section";
-            section.id = `sec-${chap.id}`;
-            
+            const section = document.createElement('div'); section.className = "chapter-section"; section.id = `sec-${chap.id}`;
             let itemsHtml = items.map(item => {
                 const count = counts[item.id] || 0;
                 const percentage = (count / maxCount) * 100;
-                const barStyle = `background: linear-gradient(to right, #e6f7ff ${percentage}%, transparent ${percentage}%);`;
-
                 return `
-                <div class="knowledge-item" id="item-${item.id}" style="${barStyle}">
+                <div class="knowledge-item" id="item-${item.id}" style="background: linear-gradient(to right, #e6f7ff ${percentage}%, transparent ${percentage}%);">
                     <input type="checkbox" class="print-checkbox item-check" data-chap="${chap.id}" onchange="syncPrintClass('${item.id}')">
                     <div style="flex: 1; min-width: 0;">
                         <span class="content-display-inner">${item.latex.trim()}</span>
                         ${item.imageUrl ? `<img src="${item.imageUrl}" class="k-image">` : ""}
-                        <div class="question-count-badge">
-                            ${count} Questions Linked
-                        </div>
+                        <div class="question-count-badge">${count} Questions Linked</div>
                     </div>
                     <div class="item-actions">
                         <button class="action-btn q-btn" onclick="openPracticeModal('${item.id}')">Q</button>
@@ -337,38 +266,45 @@
                 </div>`;
             }).join('');
 
-            section.innerHTML = `
-                <div class="chapter-banner" onclick="toggleFold('${chap.id}')">
-                    <input type="checkbox" class="print-checkbox chapter-check" onclick="event.stopPropagation()" onchange="toggleChapterItems('${chap.id}', this.checked)">
-                    ${chap.name} <span class="fold-icon">▼</span>
-                </div>
-                <div class="knowledge-container">${itemsHtml}</div>`;
+            section.innerHTML = `<div class="chapter-banner" onclick="toggleFold('${chap.id}')"><input type="checkbox" class="print-checkbox chapter-check" onclick="event.stopPropagation()" onchange="toggleChapterItems('${chap.id}', this.checked)">${chap.name} <span class="fold-icon">▼</span></div><div class="knowledge-container">${itemsHtml}</div>`;
             lib.appendChild(section);
         });
-
         if (window.MathJax) MathJax.typesetPromise();
     }
 
-    // Helper functions for UI
+    // --- UPDATED PRACTICE MODAL LOGIC WITH IMAGE FIX ---
     window.openPracticeModal = (kId) => {
         const practiceList = document.getElementById('practiceList');
-        const relatedQs = allQuestions.filter(q => 
-            q.knowledgeIds?.includes(kId) && 
-            (q.categories || []).some(cid => selectedYearIds.has(cid))
-        );
+        const relatedQs = allQuestions.filter(q => q.knowledgeIds?.includes(kId) && (q.categories || []).some(cid => selectedYearIds.has(cid)));
 
         if (relatedQs.length === 0) {
             practiceList.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>No questions match the current filters.</p>";
         } else {
             practiceList.innerHTML = relatedQs.map((q, i) => {
                 const yr = yearCategories.find(yc => q.categories?.includes(yc.id))?.name || "Unknown";
+                
+                // Logic to handle images for both question and solution
+                const qImg = q.diagramUrl || q.imageUrl || "";
+                const sImg = q.solutionDiagramUrl || q.solutionImageUrl || "";
+
+                // Logic to handle multi-line LaTeX (same as admin preview)
+                const formattedQuestion = (q.latexQuestion || "").replace(/\n/g, '<br>');
+                const formattedSolution = (q.latexSolution || "").replace(/\n/g, '<br>');
+
                 return `
                 <div class="practice-q-card">
-                    <strong>Question ${i + 1} (${yr})</strong>
-                    <div style="margin: 10px 0;">${q.latexQuestion}</div>
-                    ${q.diagramUrl ? `<img src="${q.diagramUrl}" style="max-width:100%; border-radius:8px;">` : ""}
+                    <div style="margin-bottom: 10px;"><strong>Question ${i + 1} (${yr})</strong></div>
+                    <div style="margin: 10px 0; line-height: 1.6;">${formattedQuestion}</div>
+                    
+                    ${qImg ? `<img src="${qImg}" style="max-width:100%; border-radius:8px; display:block; margin: 15px 0; border: 1px solid #eee;">` : ""}
+                    
                     <button class="show-sol-btn" onclick="togglePracticeSol(this)">Show Solution</button>
-                    <div class="practice-sol-box"><strong>Solution:</strong><br>${q.latexSolution}</div>
+                    
+                    <div class="practice-sol-box">
+                        <strong>Solution:</strong><br>
+                        <div style="margin-top: 8px;">${formattedSolution}</div>
+                        ${sImg ? `<img src="${sImg}" style="max-width:100%; border-radius:8px; display:block; margin-top: 15px; border: 1px solid #ddd;">` : ""}
+                    </div>
                 </div>`;
             }).join('');
         }
@@ -391,74 +327,26 @@
     };
     window.toggleChapterItems = (chapId, isChecked) => {
         document.querySelectorAll(`.item-check[data-chap="${chapId}"]`).forEach(cb => {
-            cb.checked = isChecked;
-            syncPrintClass(cb.closest('.knowledge-item').id.replace('item-', ''));
+            cb.checked = isChecked; syncPrintClass(cb.closest('.knowledge-item').id.replace('item-', ''));
         });
     };
     window.syncPrintClass = (itemId) => {
-        const el = document.getElementById(`item-${itemId}`);
-        const checked = el.querySelector('.item-check').checked;
-        el.classList.toggle('selected-for-print', checked);
-        const section = el.closest('.chapter-section');
-        const hasSelected = section.querySelectorAll('.selected-for-print').length > 0;
-        section.classList.toggle('has-selected-items', hasSelected);
+        const el = document.getElementById(`item-${itemId}`); const checked = el.querySelector('.item-check').checked;
+        el.classList.toggle('selected-for-print', checked); const section = el.closest('.chapter-section');
+        section.classList.toggle('has-selected-items', section.querySelectorAll('.selected-for-print').length > 0);
     };
-    window.executePrint = () => {
-        if (document.querySelectorAll('.selected-for-print').length === 0) return alert("Select items first.");
-        window.print();
-    };
-    window.openAddModal = () => {
-        document.getElementById('editTargetId').value = "";
-        document.getElementById('modalTitle').innerText = "Add Concept";
-        document.getElementById('latexInput').value = "";
-        document.getElementById('imgUrlInput').value = "";
-        updatePreview();
-        document.getElementById('editModal').style.display = 'flex';
-    };
-    window.openEditModal = (id) => {
-        const item = knowledgeBase.find(k => k.id === id);
-        document.getElementById('editTargetId').value = id;
-        document.getElementById('modalTitle').innerText = "Edit Concept";
-        document.getElementById('latexInput').value = item.latex;
-        document.getElementById('imgUrlInput').value = item.imageUrl || "";
-        document.getElementById('chapSelect').value = item.categoryId;
-        updatePreview();
-        document.getElementById('editModal').style.display = 'flex';
-    };
+    window.executePrint = () => { if (document.querySelectorAll('.selected-for-print').length === 0) return alert("Select items first."); window.print(); };
+    window.openAddModal = () => { document.getElementById('editTargetId').value = ""; document.getElementById('modalTitle').innerText = "Add Concept"; document.getElementById('latexInput').value = ""; document.getElementById('imgUrlInput').value = ""; updatePreview(); document.getElementById('editModal').style.display = 'flex'; };
+    window.openEditModal = (id) => { const item = knowledgeBase.find(k => k.id === id); document.getElementById('editTargetId').value = id; document.getElementById('modalTitle').innerText = "Edit Concept"; document.getElementById('latexInput').value = item.latex; document.getElementById('imgUrlInput').value = item.imageUrl || ""; document.getElementById('chapSelect').value = item.categoryId; updatePreview(); document.getElementById('editModal').style.display = 'flex'; };
     window.closeModal = () => document.getElementById('editModal').style.display = 'none';
-    window.updatePreview = () => {
-        const text = document.getElementById('latexInput').value;
-        const img = document.getElementById('imgUrlInput').value;
-        const outText = document.getElementById('latexPreview');
-        const outImg = document.getElementById('imgPreview');
-        outText.innerText = text.trim();
-        outImg.src = img; outImg.style.display = img ? "block" : "none";
-        if (window.MathJax) MathJax.typesetPromise([outText]);
-    };
-    window.saveData = async () => {
-        const id = document.getElementById('editTargetId').value;
-        const data = {
-            latex: document.getElementById('latexInput').value.trim(),
-            imageUrl: document.getElementById('imgUrlInput').value.trim(),
-            categoryId: document.getElementById('chapSelect').value
-        };
-        if (!data.categoryId) return alert("Select Chapter");
-        id ? await updateDoc(doc(db, "Knowledge", id), data) : await addDoc(collection(db, "Knowledge"), { ...data, order: Date.now(), createdAt: new Date() });
-        closeModal(); await init();
-    };
-    window.deleteItem = async (id) => {
-        if (confirm("Delete this concept?")) { await deleteDoc(doc(db, "Knowledge", id)); await init(); }
-    };
+    window.updatePreview = () => { const text = document.getElementById('latexInput').value; const img = document.getElementById('imgUrlInput').value; const outText = document.getElementById('latexPreview'); const outImg = document.getElementById('imgPreview'); outText.innerText = text.trim(); outImg.src = img; outImg.style.display = img ? "block" : "none"; if (window.MathJax) MathJax.typesetPromise([outText]); };
+    window.saveData = async () => { const id = document.getElementById('editTargetId').value; const data = { latex: document.getElementById('latexInput').value.trim(), imageUrl: document.getElementById('imgUrlInput').value.trim(), categoryId: document.getElementById('chapSelect').value }; if (!data.categoryId) return alert("Select Chapter"); id ? await updateDoc(doc(db, "Knowledge", id), data) : await addDoc(collection(db, "Knowledge"), { ...data, order: Date.now(), createdAt: new Date() }); closeModal(); await init(); };
+    window.deleteItem = async (id) => { if (confirm("Delete this concept?")) { await deleteDoc(doc(db, "Knowledge", id)); await init(); } };
     window.moveItem = async (id, direction) => {
-        const idx = knowledgeBase.findIndex(k => k.id === id);
-        const targetIdx = idx + direction;
+        const idx = knowledgeBase.findIndex(k => k.id === id); const targetIdx = idx + direction;
         if (targetIdx < 0 || targetIdx >= knowledgeBase.length) return;
         const current = knowledgeBase[idx], swap = knowledgeBase[targetIdx];
-        const oldOrder = current.order || 0, newOrder = swap.order || 0;
-        await Promise.all([
-            updateDoc(doc(db, "Knowledge", current.id), { order: newOrder }),
-            updateDoc(doc(db, "Knowledge", swap.id), { order: oldOrder })
-        ]);
+        await Promise.all([updateDoc(doc(db, "Knowledge", current.id), { order: swap.order || 0 }), updateDoc(doc(db, "Knowledge", swap.id), { order: current.order || 0 })]);
         await init();
     };
 
