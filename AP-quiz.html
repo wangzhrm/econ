@@ -190,7 +190,7 @@
         const studentQuizzes = dbData.quizzes.filter(z => z.studentId === studentId);
         
         const head = document.getElementById('tableHead');
-        let hHtml = `<tr><th class="col-q">Content & Figures</th><th class="col-select no-print">+</th>`;
+        let hHtml = `<tr><th class="col-q">Content & Figures(micro:)(macro:4/9/13/12/15/7)</th><th class="col-select no-print">+</th>`;
         studentQuizzes.forEach(z => {
             hHtml += `<th class="col-quiz no-print">
                 <div style="font-size:9px; line-height:1">${z.quizName}</div>
