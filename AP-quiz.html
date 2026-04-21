@@ -11,10 +11,9 @@
     </script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
-        :root { --primary: #1890ff; --bg: #f4f7f9; --border: #e5e7eb; --accent: #722ed1; --text: #1f2937; --success: #52c41a; }
+        :root { --primary: #1890ff; --bg: #f4f7f9; --border: #e5e7eb; --accent: #722ed1; --text: #1f2937; --success: #52c41a; --warning: #faad14; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text); }
         
-        /* Layout */
         .layout { display: grid; grid-template-columns: 350px 1fr; gap: 25px; max-width: 1800px; margin: auto; }
         .sidebar { 
             background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
@@ -24,7 +23,6 @@
         
         input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; margin-top: 5px; }
         
-        /* Left-aligned Chapters Filter */
         #chapterFilterList {
             max-height: 250px; overflow-y: auto; margin-top: 8px; padding: 10px;
             border: 1px solid #f0f0f0; border-radius: 6px; background: #fafafa;
@@ -35,37 +33,24 @@
         .filter-item { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 0.85rem; width: 100%; text-align: left; cursor: pointer; }
         .filter-item input { width: 18px; height: 18px; margin: 0; cursor: pointer; }
 
-        /* Table UI */
         .main-content { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #f8fafc; padding: 12px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); font-size: 0.8rem; }
+        th { background: #f8fafc; padding: 12px; border-bottom: 2px solid var(--border); border-right: 1px solid var(--border); font-size: 0.8rem; min-width: 130px; }
         td { padding: 12px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); vertical-align: top; }
         
         .row-chapter { background: #f0f7ff; font-weight: 800; color: var(--primary); }
         .row-knowledge { background: #fafafa; font-style: italic; color: #722ed1; }
         
-        /* IMPROVED CHECKBOX STYLING */
-        .select-cell { 
-            text-align: center; 
-            cursor: pointer; 
-            transition: background 0.2s;
-            position: relative;
-        }
+        .select-cell { text-align: center; cursor: pointer; transition: background 0.2s; }
         .select-cell:hover { background: #e6f7ff; }
-        .q-check { 
-            width: 22px; 
-            height: 22px; 
-            cursor: pointer;
-            margin: 0;
-            accent-color: var(--primary);
-        }
+        .q-check { width: 24px; height: 24px; cursor: pointer; accent-color: var(--primary); }
 
-        /* Quiz Action Buttons */
         .quiz-actions { margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
         .btn-action { font-size: 10px; cursor: pointer; font-weight: bold; padding: 5px 2px; border-radius: 4px; border: 1px solid transparent; text-align: center; }
         .btn-reprint { background: #e6f7ff; color: #1890ff; border-color: #91d5ff; }
         .btn-sol { background: #f6ffed; color: #52c41a; border-color: #b7eb8f; }
-        .btn-delete { background: #fff1f0; color: #f5222d; border-color: #ffa39e; grid-column: span 2; }
+        .btn-edit { background: #fff7e6; color: #fa8c16; border-color: #ffd591; }
+        .btn-delete { background: #fff1f0; color: #f5222d; border-color: #ffa39e; }
         
         .q-display-area { line-height: 1.6; white-space: pre-wrap; }
         .q-image { max-width: 300px; border-radius: 8px; border: 1px solid #eee; margin-top: 12px; display: block; }
@@ -73,16 +58,21 @@
 
         .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .btn-gen { background: var(--success); color: white; }
+        .btn-update { background: var(--warning); color: white; }
         .counter-float { background: var(--primary); color: white; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 15px; }
+
+        .edit-banner { background: #fff7e6; border: 1px solid #ffd591; padding: 10px; border-radius: 8px; margin-bottom: 10px; font-size: 0.8rem; display: none; }
 
         @media print {
             .sidebar, .no-print, .quiz-actions, th:nth-child(n+2), td:nth-child(n+2) { display: none !important; }
-            body { background: white; padding: 0; }
-            .layout { display: block; }
-            .main-content { box-shadow: none; }
+            body { background: white !important; padding: 0 !important; }
+            .layout { display: block !important; }
+            .main-content { box-shadow: none !important; }
             table, tbody, tr, td { display: block !important; width: 100% !important; border: none !important; }
+            .no-print { display: none !important; }
             body.clean-print .row-chapter, body.clean-print .row-knowledge { display: none !important; }
-            .row-question { border-bottom: 2px solid #f0f0f0 !important; padding: 25px 0 !important; page-break-inside: avoid; }
+            .row-question { border-bottom: 2px solid #f0f0f0 !important; padding: 25px 0 !important; page-break-inside: avoid; display: none !important; }
+            body.printing-mode .selected-for-print { display: block !important; }
             .q-display-area { font-size: 1.1rem; }
             .q-image { max-width: 100% !important; }
             body.show-solutions-print .sol-box { display: block !important; }
@@ -97,16 +87,24 @@
         <input type="text" id="newStudentName" placeholder="Enter name...">
         <button class="btn" style="background: var(--accent); color: white;" onclick="addStudent()">+ Create Student</button>
         <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+        
         <h3>Quiz Architect</h3>
-        <select id="studentSelect" onchange="refreshView()">
+        <select id="studentSelect" onchange="exitEditMode(); refreshView()">
             <option value="">-- Select Student --</option>
         </select>
 
         <div id="quizOptions" style="display:none; margin-top:15px;">
+            <div id="editBanner" class="edit-banner">
+                <strong>Editing:</strong> <span id="editingQuizName"></span>
+                <br><a href="#" onclick="exitEditMode()" style="color:red; font-weight:bold;">Cancel / Create New</a>
+            </div>
+
             <div class="counter-float">Selected: <span id="selCount">0</span></div>
+            
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 15px;">
                 <input type="checkbox" id="includeSolutions" style="width: auto;"> <strong>Include Solutions</strong>
             </label>
+
             <div class="filter-header">
                 <strong>Filter Chapters:</strong>
                 <div class="filter-links">
@@ -115,7 +113,8 @@
                 </div>
             </div>
             <div id="chapterFilterList"></div>
-            <button class="btn btn-gen" onclick="generateAndSave()">Generate & Export</button>
+            
+            <button id="mainBtn" class="btn btn-gen" onclick="handleGenerate()">Generate & Export</button>
         </div>
     </div>
 
@@ -131,7 +130,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
@@ -149,6 +148,7 @@
     let selectedQs = new Set();
     let selectedChapterIds = new Set();
     let visibleChapters = [];
+    let currentEditQuizId = null;
 
     async function init() {
         const [cSnap, kSnap, qSnap, sSnap, zSnap] = await Promise.all([
@@ -212,13 +212,18 @@
         const studentQuizzes = dbData.quizzes.filter(z => z.studentId === studentId);
         
         const head = document.getElementById('tableHead');
-        let hHtml = `<tr><th style="text-align:left;">Question Content(4/9/13/12/15/7)</th><th class="no-print">Select</th>`;
+        let hHtml = `<tr><th style="text-align:left;">Question Content</th><th class="no-print">Select</th>`;
         studentQuizzes.forEach(z => {
-            hHtml += `<th class="no-print">${z.quizName}<div class="quiz-actions">
-                <span class="btn-action btn-reprint" onclick="reprintQuiz('${z.id}', false)">Export</span>
-                <span class="btn-action btn-sol" onclick="reprintQuiz('${z.id}', true)">Sol</span>
-                <span class="btn-action btn-delete" onclick="removeQuiz('${z.id}')">Delete</span>
-            </div></th>`;
+            const isEditingThis = currentEditQuizId === z.id;
+            hHtml += `<th class="no-print" style="${isEditingThis ? 'background:#fff7e6; outline:2px solid #fa8c16;' : ''}">
+                ${z.quizName}
+                <div class="quiz-actions">
+                    <span class="btn-action btn-reprint" onclick="reprintQuiz('${z.id}', false)">Export</span>
+                    <span class="btn-action btn-sol" onclick="reprintQuiz('${z.id}', true)">Sol</span>
+                    <span class="btn-action btn-edit" onclick="enterEditMode('${z.id}')">Edit</span>
+                    <span class="btn-action btn-delete" onclick="removeQuiz('${z.id}')">Delete</span>
+                </div>
+            </th>`;
         });
         head.innerHTML = hHtml + `</tr>`;
 
@@ -252,7 +257,7 @@
                         </td>
                     `;
                     studentQuizzes.forEach(z => {
-                        cells += `<td class="no-print" style="text-align:center;">${z.questionIds.includes(q.id)?'✓':''}</td>`;
+                        cells += `<td class="no-print" style="text-align:center; font-size:1.2rem;">${z.questionIds.includes(q.id)?'✓':''}</td>`;
                     });
                     row.innerHTML = cells;
                     body.appendChild(row);
@@ -262,7 +267,6 @@
         if (window.MathJax) MathJax.typesetPromise();
     }
 
-    // Helper to allow clicking anywhere in the cell
     window.handleCellClick = (e, qId) => {
         const checkbox = e.currentTarget.querySelector('input');
         checkbox.checked = !checkbox.checked;
@@ -275,48 +279,105 @@
         renderTable();
     };
 
-    window.generateAndSave = async () => {
+    window.enterEditMode = (quizId) => {
+        const quiz = dbData.quizzes.find(z => z.id === quizId);
+        currentEditQuizId = quizId;
+        selectedQs = new Set(quiz.questionIds);
+        document.getElementById('selCount').innerText = selectedQs.size;
+        document.getElementById('includeSolutions').checked = !!quiz.includeSolutions;
+        
+        document.getElementById('editBanner').style.display = 'block';
+        document.getElementById('editingQuizName').innerText = quiz.quizName;
+        const btn = document.getElementById('mainBtn');
+        btn.innerText = "Save Changes to Database";
+        btn.className = "btn btn-update";
+        
+        renderTable();
+    };
+
+    window.exitEditMode = () => {
+        currentEditQuizId = null;
+        selectedQs.clear();
+        document.getElementById('selCount').innerText = "0";
+        document.getElementById('editBanner').style.display = 'none';
+        const btn = document.getElementById('mainBtn');
+        btn.innerText = "Generate & Export";
+        btn.className = "btn btn-gen";
+        renderTable();
+    };
+
+    window.handleGenerate = async () => {
         const studentId = document.getElementById('studentSelect').value;
         if(selectedQs.size === 0) return alert("Select questions first.");
         const includeSols = document.getElementById('includeSolutions').checked;
-        const quizName = new Date().toLocaleDateString();
-        await addDoc(collection(db, "Quizzes"), {
-            studentId, quizName, questionIds: Array.from(selectedQs), 
-            includeSolutions: includeSols, timestamp: Date.now()
-        });
-        document.body.classList.add('clean-print');
-        if(includeSols) document.body.classList.add('show-solutions-print');
-        await init();
-        renderTable();
-        setTimeout(() => {
-            window.print();
-            document.body.classList.remove('clean-print', 'show-solutions-print');
-            selectedQs.clear();
+        const qArray = Array.from(selectedQs);
+        const btn = document.getElementById('mainBtn');
+
+        btn.disabled = true;
+        btn.innerText = "Saving...";
+
+        if(currentEditQuizId) {
+            // SYNC TO FIREBASE
+            await updateDoc(doc(db, "Quizzes", currentEditQuizId), {
+                questionIds: qArray,
+                includeSolutions: includeSols
+            });
+            // RE-INITIALIZE DATA TO GET THE FRESH STATE
+            await init();
+            alert("Changes saved to Database.");
+            exitEditMode();
+        } else {
+            const quizName = new Date().toLocaleDateString();
+            await addDoc(collection(db, "Quizzes"), {
+                studentId, quizName, questionIds: qArray, 
+                includeSolutions: includeSols, timestamp: Date.now()
+            });
+            
+            document.body.classList.add('printing-mode', 'clean-print');
+            if(includeSols) document.body.classList.add('show-solutions-print');
+            
+            await init();
             renderTable();
-        }, 500);
+            setTimeout(() => {
+                window.print();
+                document.body.classList.remove('printing-mode', 'clean-print', 'show-solutions-print');
+                selectedQs.clear();
+                btn.disabled = false;
+                exitEditMode();
+            }, 800);
+        }
+        btn.disabled = false;
     };
 
     window.reprintQuiz = (quizId, forceSolutions) => {
         const quiz = dbData.quizzes.find(z => z.id === quizId);
         selectedQs = new Set(quiz.questionIds);
-        document.body.classList.add('clean-print');
-        if(forceSolutions || quiz.includeSolutions) { document.body.classList.add('show-solutions-print'); }
+        document.body.classList.add('printing-mode', 'clean-print');
+        if(forceSolutions || quiz.includeSolutions) document.body.classList.add('show-solutions-print');
         renderTable();
         setTimeout(() => {
             window.print();
-            document.body.classList.remove('clean-print', 'show-solutions-print');
+            document.body.classList.remove('printing-mode', 'clean-print', 'show-solutions-print');
             selectedQs.clear();
             renderTable();
-        }, 500);
+        }, 1000);
     };
 
     window.removeQuiz = async (id) => {
-        if(confirm("Delete this stored quiz record?")) { await deleteDoc(doc(db, "Quizzes", id)); await init(); renderTable(); }
+        if(confirm("Delete this stored quiz record?")) { 
+            await deleteDoc(doc(db, "Quizzes", id)); 
+            await init(); 
+            renderTable(); 
+        }
     };
 
     window.addStudent = async () => {
         const name = document.getElementById('newStudentName').value;
-        if(name) { await addDoc(collection(db, "Students"), { name }); await init(); populateStudents(); }
+        if(name) { 
+            await addDoc(collection(db, "Students"), { name }); 
+            await init(); 
+            populateStudents(); 
+        }
     };
 
     init();
