@@ -16,6 +16,7 @@
             --border: #e2e8f0; --text-main: #0f172a; --text-muted: #64748b; 
             --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
             --accent: #8b5cf6; --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --included-bg: #ecfdf5; --included-text: #059669;
         }
 
         body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 15px; color: var(--text-main); font-size: 14px; }
@@ -34,10 +35,12 @@
         .main-content { background: white; border-radius: 10px; box-shadow: var(--shadow); overflow: auto; position: relative; }
         table { border-collapse: collapse; min-width: 100%; table-layout: fixed; }
         
-        /* Column Widths */
         .col-q { width: 450px; position: sticky; left: 0; z-index: 10; background: white; border-right: 2px solid var(--border) !important; }
         .col-select { width: 45px; text-align: center; }
-        .col-quiz { width: 55px; text-align: center; border-right: 1px solid #f1f5f9; vertical-align: top; }
+        
+        /* Updated Quiz Column Styling */
+        .col-quiz { width: 55px; text-align: center; border-right: 1px solid #f1f5f9; vertical-align: top; font-size: 0.8rem; transition: background 0.2s; }
+        .col-quiz.is-included { background-color: var(--included-bg); color: var(--included-text); font-weight: 900; font-size: 1.1rem; }
 
         thead th { position: sticky; top: 0; z-index: 20; background: #f8fafc; padding: 10px 5px; border-bottom: 2px solid var(--border); font-size: 0.65rem; color: var(--text-muted); }
         thead th.col-q { z-index: 30; }
@@ -47,9 +50,9 @@
         .row-chapter { background: #eff6ff; font-weight: 700; color: var(--primary); font-size: 0.8rem; }
         .row-knowledge { background: #fafafa; font-weight: 500; color: var(--accent); font-size: 0.75rem; }
         
-        /* Miniature Quiz Buttons */
         .quiz-actions { display: flex; flex-direction: column; gap: 2px; margin-top: 5px; align-items: center; }
         .btn-mini { width: 22px; height: 22px; line-height: 20px; font-size: 10px; font-weight: 900; border-radius: 4px; border: none; cursor: pointer; color: white; display: block; text-align: center; }
+        .btn-filter { height: 24px; line-height: 24px; width: 100%; font-size: 11px; margin-bottom: 5px; }
         .b-p { background: var(--primary); } 
         .b-s { background: var(--success); }
         .b-e { background: var(--warning); }
@@ -98,7 +101,13 @@
             <label style="font-size: 0.75rem; display: flex; align-items: center; gap: 5px; margin-bottom: 10px;">
                 <input type="checkbox" id="includeSolutions"> Include Sols
             </label>
+            
+            <div id="filterControls" style="display: flex; gap: 5px; margin-bottom: 8px;">
+                <button class="btn-mini btn-filter b-p" onclick="window.filterAll()">All</button>
+                <button class="btn-mini btn-filter b-x" onclick="window.filterNone()">Clear</button>
+            </div>
             <div id="chapterFilterList"></div>
+            
             <button id="mainBtn" class="btn-main" onclick="handleGenerate()">Sync & Export</button>
         </div>
     </div>
@@ -169,6 +178,18 @@
         renderTable();
     };
 
+    window.filterAll = () => {
+        visibleChapters.forEach(chap => selectedChapterIds.add(chap.id));
+        renderFilters();
+        renderTable();
+    };
+
+    window.filterNone = () => {
+        selectedChapterIds.clear();
+        renderFilters();
+        renderTable();
+    };
+
     function renderFilters() {
         const list = document.getElementById('chapterFilterList');
         list.innerHTML = visibleChapters.map(chap => `
@@ -184,13 +205,13 @@
         renderTable();
     };
 
-    function renderTable() {
+    window.renderTable = () => {
         const studentId = document.getElementById('studentSelect').value;
         if(!studentId) return;
         const studentQuizzes = dbData.quizzes.filter(z => z.studentId === studentId);
         
         const head = document.getElementById('tableHead');
-        let hHtml = `<tr><th class="col-q">Content & Figures(micro:)(macro:4/9/13/12/15/7)</th><th class="col-select no-print">+</th>`;
+        let hHtml = `<tr><th class="col-q">Content & Figures</th><th class="col-select no-print">+</th>`;
         studentQuizzes.forEach(z => {
             hHtml += `<th class="col-quiz no-print">
                 <div style="font-size:9px; line-height:1">${z.quizName}</div>
@@ -231,7 +252,8 @@
                         </td>
                     `;
                     studentQuizzes.forEach(z => {
-                        cells += `<td class="col-quiz no-print" style="color:var(--success); font-weight:bold;">${z.questionIds.includes(q.id)?'✓':''}</td>`;
+                        const inQuiz = z.questionIds.includes(q.id);
+                        cells += `<td class="col-quiz no-print ${inQuiz ? 'is-included' : ''}">${inQuiz ? '✓' : ''}</td>`;
                     });
                     row.innerHTML = cells;
                     body.appendChild(row);
