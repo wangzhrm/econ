@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AP Econ | Student Mastery Tracker</title>
+    <script>
+        window.MathJax = {
+            tex: { inlineMath: [['$', '$']], displayMath: [['$$', '$$']] },
+            chtml: { displayAlign: 'left' }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --primary: #1890ff; /* Econ Blue */
+            --bg: #f0f2f5;
+            --text: #1f2937;
+            --danger: #ff4d4f;
+            --success: #52c41a;
+            --success-bg: #f6ffed;
+            --accent: #722ed1;
+            --border: #e5e7eb;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 40px 20px; }
+        .container { max-width: 1000px; margin: auto; }
+
+        /* --- Management Panel --- */
+        .management-panel {
+            background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; flex-wrap: wrap; gap: 20px;
+            align-items: flex-end; border: 1px solid var(--border);
+        }
+        .input-group { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 250px; }
+        input, select { padding: 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 1rem; }
+        
+        .btn-add { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .btn-danger { background: white; color: var(--danger); border: 1px solid var(--danger); padding: 12px 20px; border-radius: 8px; cursor: pointer; }
+
+        /* --- Filter Panel --- */
+        .filter-panel { background: #fff; padding: 15px 25px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .checkbox-wrapper { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+        .filter-label { font-size: 0.85rem; font-weight: 600; color: #666; }
+        .year-chip { display: flex; align-items: center; gap: 6px; background: #f9fafb; padding: 6px 12px; border-radius: 20px; border: 1px solid #eee; cursor: pointer; font-size: 0.9rem; }
+
+        /* --- Library Styles --- */
+        .chapter-section { background: white; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid var(--border); overflow: hidden; }
+        .chapter-banner { background: #f8fafc; padding: 18px 25px; font-size: 1.1rem; font-weight: 800; color: var(--primary); border-bottom: 1px solid #f1f5f9; }
+        
+        .knowledge-item {
+            padding: 20px 25px; border-bottom: 1px solid #f1f5f9; display: flex;
+            align-items: center; gap: 20px; cursor: pointer; transition: all 0.2s ease;
+            border-left: 6px solid transparent;
+        }
+        .knowledge-item:hover { background: #fafafa; }
+        .knowledge-item.mastered { background: var(--success-bg); border-left-color: var(--success); }
+        
+        .content-display { flex: 1; font-size: 1.05rem; line-height: 1.5; }
+        .k-image { max-width: 200px; border-radius: 4px; margin-top: 10px; display: block; border: 1px solid #eee; }
+        .status-indicator { font-weight: 700; color: #bfbfbf; font-size: 0.9rem; min-width: 100px; text-align: right; }
+        .mastered .status-indicator { color: var(--success); }
+
+        .loading-overlay { opacity: 0.5; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="management-panel">
+        <div class="input-group">
+            <label><strong>1. Create Student</strong></label>
+            <div style="display:flex; gap:10px;">
+                <input type="text" id="studentNameInput" placeholder="New Student Name...">
+                <button class="btn-add" onclick="createNewStudent()">Add Student</button>
+            </div>
+        </div>
+        <div class="input-group">
+            <label><strong>2. Select Student</strong></label>
+            <div style="display:flex; gap:10px;">
+                <select id="studentDropdown" onchange="renderLibrary()" style="flex:1;">
+                    <option value="">-- Select Student --</option>
+                </select>
+                <button class="btn-danger" onclick="deleteStudent()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Year Filter (from Econ Knowledge Bank logic) -->
+    <div class="filter-panel">
+        <div class="filter-label">Filter by Curriculum Year:</div>
+        <div class="checkbox-wrapper" id="yearFilterList"></div>
+    </div>
+
+    <div id="libraryContainer"></div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBt9RHAT0FiA7PPh16zlnfxC6ayrI84yGc",
+        authDomain: "econap-f858f.firebaseapp.com",
+        projectId: "econap-f858f",
+        storageBucket: "econap-f858f.firebasestorage.app",
+        messagingSenderId: "71599790063",
+        appId: "1:71599790063:web:3a27262d254e667200c81a"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let yearCategories = [], childChapters = [], knowledgeBase = [], masteryRecords = [];
+    let selectedYearIds = new Set();
+
+    async function startApp() {
+        await loadBaseData();
+        await loadStudents();
+        renderLibrary();
+    }
+
+    async function loadBaseData() {
+        const [catSnap, knSnap, mastSnap] = await Promise.all([
+            getDocs(collection(db, "Category")),
+            getDocs(collection(db, "Knowledge")),
+            getDocs(collection(db, "MasteryRecords"))
+        ]);
+
+        const allCats = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        knowledgeBase = knSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (a.order || 0) - (b.order || 0));
+        masteryRecords = mastSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Identify Year Root vs Learning Chapters
+        const yearRoot = allCats.find(c => !c.parent && c.name.toLowerCase().includes("year"));
+        if (yearRoot) {
+            yearCategories = allCats.filter(c => (c.parent?.id || c.parent) === yearRoot.id).sort((a,b) => b.name.localeCompare(a.name));
+            // Default to selecting all years
+            if(selectedYearIds.size === 0) yearCategories.forEach(y => selectedYearIds.add(y.id));
+        }
+
+        const chapterRoots = allCats.filter(c => !c.parent && !c.name.toLowerCase().includes("year"));
+        childChapters = allCats.filter(c => {
+            const pid = c.parent?.id || c.parent;
+            return chapterRoots.some(r => r.id === pid);
+        }).sort((a,b) => (a.order || 0) - (b.order || 0));
+
+        renderYearFilters();
+    }
+
+    function renderYearFilters() {
+        const container = document.getElementById('yearFilterList');
+        container.innerHTML = "";
+        yearCategories.forEach(cat => {
+            const chip = document.createElement('label');
+            chip.className = "year-chip";
+            const isChecked = selectedYearIds.has(cat.id);
+            chip.innerHTML = `<input type="checkbox" value="${cat.id}" ${isChecked ? 'checked' : ''}> ${cat.name}`;
+            chip.querySelector('input').addEventListener('change', (e) => {
+                e.target.checked ? selectedYearIds.add(e.target.value) : selectedYearIds.delete(e.target.value);
+                renderLibrary();
+            });
+            container.appendChild(chip);
+        });
+    }
+
+    async function loadStudents() {
+        const stuSnap = await getDocs(collection(db, "Students"));
+        const dropdown = document.getElementById('studentDropdown');
+        dropdown.innerHTML = '<option value="">-- Select Student --</option>';
+        stuSnap.docs.forEach(doc => {
+            const opt = document.createElement('option');
+            opt.value = doc.id;
+            opt.textContent = doc.data().name;
+            dropdown.appendChild(opt);
+        });
+    }
+
+    window.createNewStudent = async () => {
+        const input = document.getElementById('studentNameInput');
+        const name = input.value.trim();
+        if (!name) return;
+        await addDoc(collection(db, "Students"), { name, createdAt: new Date() });
+        input.value = "";
+        await loadStudents();
+    };
+
+    window.toggleMastery = async (kId, element) => {
+        const sId = document.getElementById('studentDropdown').value;
+        if (!sId) return alert("Select a student first!");
+
+        element.classList.add('loading-overlay');
+        try {
+            const existing = masteryRecords.find(r => r.studentId === sId && r.knowledgeId === kId);
+            if (existing) {
+                await deleteDoc(doc(db, "MasteryRecords", existing.id));
+            } else {
+                await addDoc(collection(db, "MasteryRecords"), { studentId: sId, knowledgeId: kId });
+            }
+            // Refresh mastery records and UI
+            const mastSnap = await getDocs(collection(db, "MasteryRecords"));
+            masteryRecords = mastSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderLibrary();
+        } catch (e) { alert("Update failed."); element.classList.remove('loading-overlay'); }
+    };
+
+    function renderLibrary() {
+        const container = document.getElementById('libraryContainer');
+        const sId = document.getElementById('studentDropdown').value;
+        container.innerHTML = "";
+
+        if (!sId) {
+            container.innerHTML = "<div style='text-align:center; padding:40px; color:#999;'>Please select a student to view progress.</div>";
+            return;
+        }
+
+        childChapters.forEach(chap => {
+            const items = knowledgeBase.filter(k => k.categoryId === chap.id);
+            if (items.length === 0) return;
+
+            const section = document.createElement('div');
+            section.className = "chapter-section";
+            
+            const itemsHtml = items.map(item => {
+                const isMastered = masteryRecords.some(r => r.studentId === sId && r.knowledgeId === item.id);
+                return `
+                    <div class="knowledge-item ${isMastered ? 'mastered' : ''}" onclick="toggleMastery('${item.id}', this)">
+                        <div class="content-display">
+                            ${item.latex}
+                            ${item.imageUrl ? `<img src="${item.imageUrl}" class="k-image">` : ""}
+                        </div>
+                        <div class="status-indicator">${isMastered ? '✓ MASTERED' : '○ NOT YET'}</div>
+                    </div>
+                `;
+            }).join('');
+
+            section.innerHTML = `
+                <div class="chapter-banner">${chap.name}</div>
+                <div class="knowledge-container">${itemsHtml}</div>
+            `;
+            container.appendChild(section);
+        });
+
+        if (window.MathJax) MathJax.typesetPromise();
+    }
+
+    window.renderLibrary = renderLibrary;
+    startApp();
+</script>
+</body>
+</html>
