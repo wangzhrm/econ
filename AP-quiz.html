@@ -38,8 +38,8 @@
         .col-q { width: 450px; position: sticky; left: 0; z-index: 10; background: white; border-right: 2px solid var(--border) !important; }
         .col-select { width: 45px; text-align: center; cursor: pointer; }
         
-        .col-quiz { width: 55px; text-align: center; border-right: 1px solid #f1f5f9; vertical-align: top; font-size: 0.8rem; transition: background 0.2s; }
-        .col-quiz.is-included { background-color: var(--included-bg); color: var(--included-text); font-weight: 900; font-size: 1.1rem; }
+        .col-quiz { width: 55px; text-align: center; border-right: 1px solid #f1f5f9; vertical-align: top; font-size: 0.75rem; transition: background 0.2s; }
+        .col-quiz.is-included { background-color: var(--included-bg); color: var(--included-text); font-weight: 900; }
 
         thead th { position: sticky; top: 0; z-index: 20; background: #f8fafc; padding: 10px 5px; border-bottom: 2px solid var(--border); font-size: 0.65rem; color: var(--text-muted); }
         thead th.col-q { z-index: 30; }
@@ -226,7 +226,20 @@
 
         const body = document.getElementById('tableBody');
         body.innerHTML = "";
-        let qCount = 1;
+        
+        // Tracking question count for the CURRENT selection (for printing)
+        // We calculate this by seeing which questions are currently in the Set
+        let currentSelectionMap = new Map();
+        let idx = 1;
+        // Logic: The printed Q numbers follow the table order
+        visibleChapters.forEach(chap => {
+            if(!selectedChapterIds.has(chap.id)) return;
+            dbData.knowledge.filter(k => k.categoryId === chap.id).forEach(kn => {
+                dbData.questions.filter(q => q.knowledgeIds?.includes(kn.id)).forEach(q => {
+                    if(selectedQs.has(q.id)) currentSelectionMap.set(q.id, idx++);
+                });
+            });
+        });
 
         visibleChapters.forEach(chap => {
             if(!selectedChapterIds.has(chap.id)) return;
@@ -237,12 +250,14 @@
 
                 dbData.questions.filter(q => q.knowledgeIds?.includes(kn.id)).forEach(q => {
                     const isSel = selectedQs.has(q.id);
+                    const qNumInCurrent = currentSelectionMap.get(q.id);
+
                     const row = document.createElement('tr');
                     row.className = "row-question " + (isSel ? "selected-for-print" : "no-print");
 
                     let cells = `
                         <td class="col-q">
-                            <div class="q-display-area"><strong>Q${isSel ? qCount++ : ''}:</strong> ${q.latexQuestion.replace(/\n/g, '<br>')}</div>
+                            <div class="q-display-area"><strong>Q${isSel ? qNumInCurrent : ''}:</strong> ${q.latexQuestion.replace(/\n/g, '<br>')}</div>
                             ${q.diagramUrl ? `<img src="${q.diagramUrl}" class="q-image">` : ''}
                             <div class="sol-box"><strong>Sol:</strong><br>${(q.latexSolution || '').replace(/\n/g, '<br>')}</div>
                         </td>
@@ -250,9 +265,13 @@
                             <input type="checkbox" style="width:18px;height:18px;" ${isSel?'checked':''} onclick="event.stopPropagation(); toggleQ('${q.id}', this)">
                         </td>
                     `;
+                    
                     studentQuizzes.forEach(z => {
-                        const inQuiz = z.questionIds.includes(q.id);
-                        cells += `<td class="col-quiz no-print ${inQuiz ? 'is-included' : ''}">${inQuiz ? '✓' : ''}</td>`;
+                        // Find index of this question in the specific saved quiz
+                        const quizQIdx = z.questionIds.indexOf(q.id);
+                        const inQuiz = quizQIdx !== -1;
+                        // quizQIdx is 0-based, so add 1 for display
+                        cells += `<td class="col-quiz no-print ${inQuiz ? 'is-included' : ''}">${inQuiz ? '#' + (quizQIdx + 1) : ''}</td>`;
                     });
                     row.innerHTML = cells;
                     body.appendChild(row);
@@ -260,15 +279,12 @@
             });
         });
 
-        // Update the selection counter UI
         document.getElementById('selCount').innerText = selectedQs.size;
         if (window.MathJax) MathJax.typesetPromise();
     }
 
     window.handleCellClick = (e, qId) => {
-        // Prevent double-toggle if the actual checkbox was clicked
         if (e.target.tagName === 'INPUT') return;
-        
         const checkbox = e.currentTarget.querySelector('input');
         checkbox.checked = !checkbox.checked;
         window.toggleQ(qId, checkbox);
@@ -276,13 +292,14 @@
 
     window.toggleQ = (id, cb) => {
         cb.checked ? selectedQs.add(id) : selectedQs.delete(id);
-        // We render table to refresh Q numbers and styles
         renderTable(); 
     };
 
     window.enterEditMode = (quizId) => {
         const quiz = dbData.quizzes.find(z => z.id === quizId);
         currentEditQuizId = quizId;
+        // Important: Use an array to maintain order during edit if needed, 
+        // but the current logic uses table-order for generation.
         selectedQs = new Set(quiz.questionIds);
         document.getElementById('includeSolutions').checked = !!quiz.includeSolutions;
         document.getElementById('editBanner').style.display = 'block';
@@ -302,7 +319,17 @@
         const studentId = document.getElementById('studentSelect').value;
         if(selectedQs.size === 0) return alert("Select questions.");
         const includeSols = document.getElementById('includeSolutions').checked;
-        const qArray = Array.from(selectedQs);
+        
+        // We generate the array based on the table order so Q1, Q2... matches the printout
+        const qArray = [];
+        visibleChapters.forEach(chap => {
+            if(!selectedChapterIds.has(chap.id)) return;
+            dbData.knowledge.filter(k => k.categoryId === chap.id).forEach(kn => {
+                dbData.questions.filter(q => q.knowledgeIds?.includes(kn.id)).forEach(q => {
+                    if(selectedQs.has(q.id)) qArray.push(q.id);
+                });
+            });
+        });
 
         if(currentEditQuizId) {
             await updateDoc(doc(db, "Quizzes", currentEditQuizId), { questionIds: qArray, includeSolutions: includeSols });
@@ -311,13 +338,13 @@
         } else {
             const quizName = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short' });
             await addDoc(collection(db, "Quizzes"), { studentId, quizName, questionIds: qArray, includeSolutions: includeSols, timestamp: Date.now() });
-            document.body.classList.add('printing-mode', 'clean-print');
+            document.body.classList.add('printing-mode');
             if(includeSols) document.body.classList.add('show-solutions-print');
             await init();
             renderTable();
             setTimeout(() => {
                 window.print();
-                document.body.classList.remove('printing-mode', 'clean-print', 'show-solutions-print');
+                document.body.classList.remove('printing-mode', 'show-solutions-print');
                 selectedQs.clear();
                 exitEditMode();
             }, 800);
@@ -327,12 +354,12 @@
     window.reprintQuiz = (quizId, forceSolutions) => {
         const quiz = dbData.quizzes.find(z => z.id === quizId);
         selectedQs = new Set(quiz.questionIds);
-        document.body.classList.add('printing-mode', 'clean-print');
+        document.body.classList.add('printing-mode');
         if(forceSolutions || quiz.includeSolutions) document.body.classList.add('show-solutions-print');
         renderTable();
         setTimeout(() => {
             window.print();
-            document.body.classList.remove('printing-mode', 'clean-print', 'show-solutions-print');
+            document.body.classList.remove('printing-mode', 'show-solutions-print');
             selectedQs.clear();
             renderTable();
         }, 1000);
