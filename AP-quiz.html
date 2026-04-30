@@ -36,9 +36,8 @@
         table { border-collapse: collapse; min-width: 100%; table-layout: fixed; }
         
         .col-q { width: 450px; position: sticky; left: 0; z-index: 10; background: white; border-right: 2px solid var(--border) !important; }
-        .col-select { width: 45px; text-align: center; }
+        .col-select { width: 45px; text-align: center; cursor: pointer; }
         
-        /* Updated Quiz Column Styling */
         .col-quiz { width: 55px; text-align: center; border-right: 1px solid #f1f5f9; vertical-align: top; font-size: 0.8rem; transition: background 0.2s; }
         .col-quiz.is-included { background-color: var(--included-bg); color: var(--included-text); font-weight: 900; font-size: 1.1rem; }
 
@@ -248,7 +247,7 @@
                             <div class="sol-box"><strong>Sol:</strong><br>${(q.latexSolution || '').replace(/\n/g, '<br>')}</div>
                         </td>
                         <td class="col-select no-print" onclick="handleCellClick(event, '${q.id}')">
-                            <input type="checkbox" style="width:18px;height:18px;" ${isSel?'checked':''} onclick="event.stopPropagation()">
+                            <input type="checkbox" style="width:18px;height:18px;" ${isSel?'checked':''} onclick="event.stopPropagation(); toggleQ('${q.id}', this)">
                         </td>
                     `;
                     studentQuizzes.forEach(z => {
@@ -260,10 +259,16 @@
                 });
             });
         });
+
+        // Update the selection counter UI
+        document.getElementById('selCount').innerText = selectedQs.size;
         if (window.MathJax) MathJax.typesetPromise();
     }
 
     window.handleCellClick = (e, qId) => {
+        // Prevent double-toggle if the actual checkbox was clicked
+        if (e.target.tagName === 'INPUT') return;
+        
         const checkbox = e.currentTarget.querySelector('input');
         checkbox.checked = !checkbox.checked;
         window.toggleQ(qId, checkbox);
@@ -271,15 +276,14 @@
 
     window.toggleQ = (id, cb) => {
         cb.checked ? selectedQs.add(id) : selectedQs.delete(id);
-        document.getElementById('selCount').innerText = selectedQs.size;
-        renderTable();
+        // We render table to refresh Q numbers and styles
+        renderTable(); 
     };
 
     window.enterEditMode = (quizId) => {
         const quiz = dbData.quizzes.find(z => z.id === quizId);
         currentEditQuizId = quizId;
         selectedQs = new Set(quiz.questionIds);
-        document.getElementById('selCount').innerText = selectedQs.size;
         document.getElementById('includeSolutions').checked = !!quiz.includeSolutions;
         document.getElementById('editBanner').style.display = 'block';
         document.getElementById('mainBtn').innerText = "Update Record";
@@ -289,7 +293,6 @@
     window.exitEditMode = () => {
         currentEditQuizId = null;
         selectedQs.clear();
-        document.getElementById('selCount').innerText = "0";
         document.getElementById('editBanner').style.display = 'none';
         document.getElementById('mainBtn').innerText = "Sync & Export";
         renderTable();
